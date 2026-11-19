@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#070807" />
+    <title>Нет подключения — NFCMENU</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: #070807;
+        color: #f7f7f5;
+        font-family: system-ui, sans-serif;
+      }
+      main {
+        width: 100%;
+        max-width: 28rem;
+        text-align: center;
+      }
+      .mark {
+        margin: 0;
+        color: #14d66a;
+        font-size: 15px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      h1 {
+        margin: 16px 0 0;
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        line-height: 1.15;
+      }
+      p {
+        margin: 12px 0 0;
+        color: #8e968f;
+        font-size: 15px;
+        line-height: 1.6;
+      }
+      button {
+        margin-top: 24px;
+        height: 48px;
+        padding: 0 24px;
+        border: 0;
+        border-radius: 999px;
+        background: #14d66a;
+        color: #062117;
+        font: 500 14px/1 system-ui, sans-serif;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="mark">NFCMENU</p>
+      <h1>Нет подключения к интернету</h1>
+      <p>Проверьте соединение и попробуйте снова.</p>
+      <button type="button" onclick="location.reload()">Попробовать снова</button>
+    </main>
+  </body>
+</html>

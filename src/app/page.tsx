@@ -10,13 +10,6 @@ export const metadata: Metadata = {
 const restaurantExample = "/m/nfcmenu-demo";
 const salonExample = "/m/salonkrasotidemo";
 
-const nav = [
-  { href: "#top", label: "Главная" },
-  { href: "#examples", label: "Примеры" },
-  { href: "#features", label: "Возможности" },
-  { href: "#tariffs", label: "Тарифы" },
-];
-
 const features = [
   {
     title: "Меню и услуги",
@@ -41,21 +34,10 @@ export default function Home() {
   return (
     <div id="top" className="home flex min-h-full flex-1 flex-col bg-background text-foreground">
       <header className="sticky top-0 z-20 border-b border-line bg-background/90 backdrop-blur-md">
-        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-5 py-3 sm:px-8 lg:h-16 lg:flex-nowrap lg:py-0">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-5 py-3 sm:px-8">
           <Link href="/" className="shrink-0 text-[15px] font-extrabold tracking-[0.04em] text-accent uppercase">
             NFCMENU
           </Link>
-          <nav className="order-3 flex w-full flex-wrap items-center gap-1 text-sm lg:order-none lg:w-auto lg:flex-nowrap">
-            {nav.map((item) => (
-              <a
-                key={item.href}
-                href={item.href}
-                className="rounded-full px-3 py-1.5 text-muted transition-colors hover:text-accent"
-              >
-                {item.label}
-              </a>
-            ))}
-          </nav>
           <div className="flex shrink-0 items-center gap-2">
             <Link
               href="/admin"
@@ -97,7 +79,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="examples" className="scroll-mt-24 border-t border-line">
+        <section id="examples" className="scroll-mt-20 border-t border-line">
           <div className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-12">
             <h2 className="text-[26px] leading-none font-extrabold tracking-[-0.03em] uppercase">Примеры</h2>
             <div className="mt-6 grid gap-4 lg:grid-cols-2">
@@ -116,7 +98,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="features" className="scroll-mt-24 border-t border-line">
+        <section id="features" className="scroll-mt-20 border-t border-line">
           <div className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-12">
             <h2 className="text-[26px] leading-none font-extrabold tracking-[-0.03em] uppercase">Возможности</h2>
             <ul className="mt-6 grid gap-4 lg:grid-cols-3">
@@ -130,7 +112,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="tariffs" className="scroll-mt-24 border-t border-line">
+        <section id="tariffs" className="scroll-mt-20 border-t border-line">
           <div className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-12">
             <h2 className="text-[26px] leading-none font-extrabold tracking-[-0.03em] uppercase">Тарифы</h2>
             <div className="mt-6 grid gap-4 lg:grid-cols-2">

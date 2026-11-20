@@ -91,7 +91,7 @@ function OwnerEditor({
 }
 
 function SuperadminEditor({ businessId }: { businessId: string }) {
-  return <MenuEditor {...useSuperadminMenu(businessId)} />;
+  return <MenuEditor {...useSuperadminMenu(businessId)} presentation="owner" />;
 }
 
 function MenuEditor({
@@ -109,6 +109,12 @@ function MenuEditor({
   deleteProductPhoto,
   setBannerPhoto,
   deleteBannerPhoto,
+  pwaName,
+  pwaIcon,
+  pwaStorage,
+  savePwaName,
+  setPwaIcon,
+  deletePwaIcon,
   site = null,
   theme = "default",
   themeStorage = "ready",
@@ -1054,6 +1060,15 @@ function MenuEditor({
         {saveTheme ? (
           <OwnerThemeSection saved={theme} storage={themeStorage} site={site} onSave={saveTheme} />
         ) : null}
+        <OwnerAppSection
+          savedName={pwaName}
+          venueName={menu.venue.name}
+          iconPath={pwaIcon}
+          storage={pwaStorage}
+          onSaveName={savePwaName}
+          onSaveIcon={setPwaIcon}
+          onDeleteIcon={deletePwaIcon}
+        />
       </div>
     );
   }
@@ -1432,6 +1447,7 @@ function OwnerThemeSection({
   const [selected, setSelected] = useState(saved);
   const [notice, setNotice] = useState<{ tone: "error" | "success"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(false);
   const unavailable = storage === "missing";
 
   useEffect(() => {
@@ -1460,8 +1476,18 @@ function OwnerThemeSection({
   };
 
   return (
-    <section className="mt-6 rounded-2xl border border-line bg-card p-4">
-      <h2 className="font-medium">Оформление сайта</h2>
+    <section className="mt-6 overflow-hidden rounded-2xl border border-line bg-card">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+        className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left"
+      >
+        <span className="font-medium">Оформление сайта</span>
+        <ChevronDown className={`size-5 shrink-0 text-muted transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open ? (
+      <div className="border-t border-line px-4 py-5">
       <p className="mt-2 text-sm leading-6 text-muted">
         Тема видна только гостям на публичной странице. Кабинет остаётся прежним.
       </p>
@@ -1524,6 +1550,158 @@ function OwnerThemeSection({
           {busy ? "Сохраняем…" : "Сохранить оформление"}
         </button>
       </div>
+      </div>
+      ) : null}
+    </section>
+  );
+}
+
+function OwnerAppSection({
+  savedName,
+  venueName,
+  iconPath,
+  storage,
+  onSaveName,
+  onSaveIcon,
+  onDeleteIcon,
+}: {
+  savedName: string;
+  venueName: string;
+  iconPath: string;
+  storage: "ready" | "missing";
+  onSaveName: (name: string) => Promise<{ ok: true } | { ok: false; message: string }>;
+  onSaveIcon: (file: File) => Promise<{ ok: true; path?: string } | { ok: false; message: string }>;
+  onDeleteIcon: () => Promise<{ ok: true } | { ok: false; message: string }>;
+}) {
+  const [name, setName] = useState(savedName);
+  const [notice, setNotice] = useState<{ tone: "error" | "success"; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(false);
+  const unavailable = storage === "missing";
+  const previewName = name.trim() || venueName.trim() || "Приложение";
+  const previewSrc = iconPath ? menuPhotoUrl(iconPath) : "/icons/icon-192.png";
+
+  useEffect(() => {
+    setName(savedName);
+  }, [savedName]);
+
+  const saveName = async () => {
+    setBusy(true);
+    const result = await onSaveName(name);
+    setBusy(false);
+    if (!result.ok) {
+      setNotice({ tone: "error", text: result.message });
+      return;
+    }
+    setNotice({ tone: "success", text: "Название приложения сохранено" });
+  };
+
+  const uploadIcon = async (file: File | undefined) => {
+    if (!file || busy) return;
+    setNotice(null);
+    setBusy(true);
+    const result = await onSaveIcon(file);
+    setBusy(false);
+    if (!result.ok) {
+      setNotice({ tone: "error", text: result.message });
+      return;
+    }
+    setNotice({ tone: "success", text: "Иконка сохранена" });
+  };
+
+  const removeIcon = async () => {
+    if (busy) return;
+    setNotice(null);
+    setBusy(true);
+    const result = await onDeleteIcon();
+    setBusy(false);
+    if (!result.ok) {
+      setNotice({ tone: "error", text: result.message });
+      return;
+    }
+    setNotice({ tone: "success", text: "Иконка удалена. На экране будет стандартная иконка NFCMENU." });
+  };
+
+  return (
+    <section className="mt-6 overflow-hidden rounded-2xl border border-line bg-card">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+        className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left"
+      >
+        <span className="font-medium">Моё приложение</span>
+        <ChevronDown className={`size-5 shrink-0 text-muted transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open ? (
+      <div className="border-t border-line px-4 py-5">
+      <p className="mt-2 text-sm leading-6 text-muted">
+        Название и иконка для экрана «Домой» этого заведения. Пустое название означает название заведения. Своя иконка
+        обрезается по центру до квадрата. Пока её нет, используется стандартная иконка NFCMENU.
+      </p>
+      <div className="mt-4 flex items-center gap-4 rounded-2xl border border-line bg-background p-4">
+        <DishPhoto src={previewSrc} alt="" className="size-16 shrink-0 rounded-2xl" />
+        <div className="min-w-0">
+          <p className="text-xs text-muted">На экране «Домой»</p>
+          <p className="mt-1 truncate text-base font-medium">{previewName}</p>
+        </div>
+      </div>
+      <div className="mt-4 grid gap-2">
+        <label className="text-sm" htmlFor="pwa-app-name">
+          Название приложения
+        </label>
+        <input
+          id="pwa-app-name"
+          value={name}
+          maxLength={40}
+          disabled={unavailable || busy}
+          onChange={(event) => {
+            setName(event.target.value.slice(0, 40));
+            setNotice(null);
+          }}
+          className={fieldClass}
+          placeholder={venueName || "Название на экране"}
+        />
+        <p className="text-xs text-muted">{name.trim().length} из 40</p>
+      </div>
+      {unavailable ? (
+        <p className="mt-4 text-sm text-[#e2b2a2]" role="alert">
+          Сохранение приложения пока недоступно. Обновление базы ещё не применено.
+        </p>
+      ) : null}
+      {notice ? (
+        <p className={`mt-4 text-sm ${notice.tone === "error" ? "text-[#e2b2a2]" : "text-accent"}`} role={notice.tone === "error" ? "alert" : "status"}>
+          {notice.text}
+        </p>
+      ) : null}
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        <button
+          type="button"
+          onClick={() => void saveName()}
+          disabled={busy || unavailable || name.trim() === savedName}
+          className="h-12 rounded-full bg-accent px-5 text-sm font-medium text-[#062117] disabled:opacity-60"
+        >
+          {busy ? "Сохраняем…" : "Сохранить название"}
+        </button>
+        <PhotoPicker
+          label={iconPath ? "Заменить иконку" : "Загрузить иконку"}
+          busy={busy}
+          disabled={unavailable}
+          onFile={(file) => void uploadIcon(file)}
+        />
+        {iconPath ? (
+          <button
+            type="button"
+            onClick={() => void removeIcon()}
+            disabled={busy || unavailable}
+            className="h-12 rounded-full border border-line px-5 text-sm disabled:opacity-60"
+          >
+            Удалить иконку
+          </button>
+        ) : null}
+      </div>
+      </div>
+      ) : null}
     </section>
   );
 }
@@ -1666,23 +1844,26 @@ function PhotoPicker({
   busy,
   onFile,
   tone = "default",
+  disabled = false,
 }: {
   label: string;
   busy: boolean;
   onFile: (file: File | undefined) => void;
   tone?: "default" | "accent";
+  disabled?: boolean;
 }) {
+  const locked = busy || disabled;
   return (
     <label
       className={`inline-flex h-12 cursor-pointer items-center justify-center rounded-full px-6 text-sm font-medium ${
         tone === "accent" ? "bg-accent text-[#062117]" : "bg-foreground text-background"
-      } ${busy ? "pointer-events-none opacity-60" : ""}`}
+      } ${locked ? "pointer-events-none opacity-60" : ""}`}
     >
       {busy ? "Загружаем…" : label}
       <input
         type="file"
         accept="image/*"
-        disabled={busy}
+        disabled={locked}
         className="sr-only"
         onChange={(event) => {
           const file = event.target.files?.[0];

@@ -6,7 +6,9 @@ const MAX_PAGES = 50;
 const storageIdPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
-const folders = ["banner", "products"] as const;
+const folders = ["banner", "products", "pwa-icon"] as const;
+const outsideFolderMessage =
+  "У заведения есть файл вне папок banner, products и pwa-icon. Удаление остановлено";
 
 type ArchiveRow = {
   id: string;
@@ -79,7 +81,7 @@ async function inspectVenueFiles(
 
   for (const entry of root.entries) {
     if (entry.id !== null || !folders.includes(entry.name as (typeof folders)[number])) {
-      return fail(409, "У заведения есть файл вне папок banner и products. Удаление остановлено");
+      return fail(409, outsideFolderMessage);
     }
   }
 
@@ -90,7 +92,7 @@ async function inspectVenueFiles(
     for (const entry of listed.entries) {
       const path = `${businessId}/${folder}/${entry.name}`;
       if (entry.id === null || !isVenueFilePath(businessId, path)) {
-        return fail(409, "У заведения есть файл вне папок banner и products. Удаление остановлено");
+        return fail(409, outsideFolderMessage);
       }
       paths.push(path);
     }
@@ -114,7 +116,7 @@ async function listPageByPage(
     const batch = data ?? [];
     for (const item of batch) {
       if (!item.name || item.name === "." || item.name === "..") {
-        return fail(409, "У заведения есть файл вне папок banner и products. Удаление остановлено");
+        return fail(409, outsideFolderMessage);
       }
       entries.push({ name: item.name, id: item.id });
     }
@@ -132,7 +134,7 @@ async function removePaths(
   for (let index = 0; index < paths.length; index += PAGE_SIZE) {
     const chunk = paths.slice(index, index + PAGE_SIZE);
     if (chunk.some((path) => path.startsWith(`${BUCKET}/`) || !isVenueFilePath(businessId, path))) {
-      return fail(409, "У заведения есть файл вне папок banner и products. Удаление остановлено");
+      return fail(409, outsideFolderMessage);
     }
     const { error } = await supabase.storage.from(BUCKET).remove(chunk);
     if (error) failed = true;
@@ -142,14 +144,12 @@ async function removePaths(
 
 function isVenueFilePath(businessId: string, path: string) {
   if (!storageIdPattern.test(businessId) || path.length > 240) return false;
-  const prefixBanner = `${businessId}/banner/`;
-  const prefixProducts = `${businessId}/products/`;
-  const fileName = path.startsWith(prefixBanner)
-    ? path.slice(prefixBanner.length)
-    : path.startsWith(prefixProducts)
-      ? path.slice(prefixProducts.length)
-      : "";
-  return /^[A-Za-z0-9._-]{1,180}$/.test(fileName);
+  for (const folder of folders) {
+    const prefix = `${businessId}/${folder}/`;
+    if (!path.startsWith(prefix)) continue;
+    return /^[A-Za-z0-9._-]{1,180}$/.test(path.slice(prefix.length));
+  }
+  return false;
 }
 
 function rpcFailure(message: string): Failure {

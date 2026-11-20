@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { businessKind, type BusinessKind } from "@/lib/business-kind";
 import type { Dish, MenuState } from "@/lib/menu";
 import { readImageBlob } from "@/lib/menu";
+import { menuTheme, type MenuTheme } from "@/lib/menu-theme";
 import { MAX_MENU_PHOTO_BYTES } from "@/lib/photos";
+import { pwaNameFromValue, readSquareIconBlob } from "@/lib/pwa-settings";
 import { getSupabase } from "@/lib/supabase";
-import type { OwnerSettings } from "@/lib/use-owner-menu";
+import type { OwnerSettings, OwnerSite } from "@/lib/use-owner-menu";
 import { cashierPhoneError } from "@/lib/use-owner-menu";
 
 type VenuePayload = {
@@ -22,6 +25,13 @@ type VenuePayload = {
 
 export function useSuperadminMenu(businessId: string) {
   const [menu, setMenu] = useState<MenuState | null>(null);
+  const [kind, setKind] = useState<BusinessKind>("food");
+  const [theme, setTheme] = useState<MenuTheme>("default");
+  const [themeStorage, setThemeStorage] = useState<"ready" | "missing">("ready");
+  const [site, setSite] = useState<OwnerSite | null>(null);
+  const [pwaName, setPwaName] = useState("");
+  const [pwaIcon, setStoredPwaIcon] = useState("");
+  const [pwaStorage, setPwaStorage] = useState<"ready" | "missing">("ready");
   const [error, setError] = useState("");
   const [ready, setReady] = useState(false);
   const menuStamp = useRef(0);
@@ -29,6 +39,13 @@ export function useSuperadminMenu(businessId: string) {
   useEffect(() => {
     if (!businessId) {
       setMenu(null);
+      setKind("food");
+      setTheme("default");
+      setThemeStorage("ready");
+      setSite(null);
+      setPwaName("");
+      setStoredPwaIcon("");
+      setPwaStorage("ready");
       setError("");
       setReady(true);
       return;
@@ -39,6 +56,13 @@ export function useSuperadminMenu(businessId: string) {
       setReady(false);
       setError("");
       setMenu(null);
+      setKind("food");
+      setTheme("default");
+      setThemeStorage("ready");
+      setSite(null);
+      setPwaName("");
+      setStoredPwaIcon("");
+      setPwaStorage("ready");
       const result = await editorGet(businessId);
       if (!active || stamp !== menuStamp.current) return;
       if (!result.ok || !isMenuPayload(result.payload)) {
@@ -47,6 +71,14 @@ export function useSuperadminMenu(businessId: string) {
         return;
       }
       setMenu(menuFromPayload(result.payload));
+      setKind(businessKind(result.payload.kind));
+      setTheme(menuTheme(result.payload.theme));
+      setThemeStorage(result.payload.themeStorage === "missing" ? "missing" : "ready");
+      setSite(isSite(result.payload.site) ? result.payload.site : null);
+      const pwa = readPwa(result.payload.pwa);
+      setPwaName(pwa.name);
+      setStoredPwaIcon(pwa.icon);
+      setPwaStorage(pwa.storage);
       setReady(true);
     };
     void load().catch(() => {
@@ -71,6 +103,19 @@ export function useSuperadminMenu(businessId: string) {
     setMenu((current) =>
       current ? { ...current, venue: venueState(saved, current.venue.banner) } : current,
     );
+    return { ok: true as const };
+  };
+
+  const saveTheme = async (next: MenuTheme) => {
+    if (themeStorage === "missing") {
+      return { ok: false as const, message: "Сохранение оформления пока недоступно. Обновление базы ещё не применено." };
+    }
+    const result = await editorPost(businessId, { action: "theme", theme: next });
+    const saved = menuTheme(result.payload.theme);
+    if (!result.ok || saved !== next) {
+      return { ok: false as const, message: result.message || "Не удалось сохранить оформление." };
+    }
+    setTheme(saved);
     return { ok: true as const };
   };
 
@@ -190,6 +235,28 @@ export function useSuperadminMenu(businessId: string) {
     return { ok: true as const, path: uploaded.path };
   };
 
+  const savePwaName = async (name: string) => {
+    const result = await editorPost(businessId, { action: "pwa", name });
+    if (!result.ok) return { ok: false as const, message: result.message };
+    const saved = pwaNameFromValue(result.payload.name);
+    setPwaName(saved);
+    return { ok: true as const };
+  };
+
+  const setPwaIcon = async (file: File) => {
+    const uploaded = await sendPwaIcon(businessId, file);
+    if (!uploaded.ok) return uploaded;
+    setStoredPwaIcon(uploaded.path);
+    return { ok: true as const, path: uploaded.path };
+  };
+
+  const deletePwaIcon = async () => {
+    const result = await editorPost(businessId, { action: "deletePhoto", kind: "pwa-icon" });
+    if (!result.ok) return { ok: false as const, message: result.message };
+    setStoredPwaIcon("");
+    return { ok: true as const };
+  };
+
   const deleteBannerPhoto = async () => {
     const result = await editorPost(businessId, { action: "deletePhoto", kind: "banner" });
     if (!result.ok) return { ok: false as const, message: result.message };
@@ -200,6 +267,11 @@ export function useSuperadminMenu(businessId: string) {
 
   return {
     menu,
+    kind,
+    theme,
+    themeStorage,
+    site,
+    saveTheme,
     ready,
     error,
     saveSettings,
@@ -213,6 +285,12 @@ export function useSuperadminMenu(businessId: string) {
     deleteProductPhoto,
     setBannerPhoto,
     deleteBannerPhoto,
+    pwaName,
+    pwaIcon,
+    pwaStorage,
+    savePwaName,
+    setPwaIcon,
+    deletePwaIcon,
   };
 }
 
@@ -243,6 +321,25 @@ async function sendPhoto(businessId: string, kind: "product" | "banner", file: F
   const path = typeof result.payload?.path === "string" ? result.payload.path : "";
   if (!result.ok || !path) {
     return { ok: false as const, message: result.message || "Не удалось загрузить фотографию." };
+  }
+  return { ok: true as const, path };
+}
+
+async function sendPwaIcon(businessId: string, file: File) {
+  let blob: Blob;
+  try {
+    blob = await readSquareIconBlob(file);
+  } catch {
+    return { ok: false as const, message: "Не удалось использовать это изображение. Выберите другое." };
+  }
+  if (blob.size > MAX_MENU_PHOTO_BYTES) return { ok: false as const, message: "Иконка больше 5 МБ. Выберите другое изображение." };
+  const form = new FormData();
+  form.set("kind", "pwa-icon");
+  form.set("file", new File([blob], "icon.jpg", { type: "image/jpeg" }));
+  const result = await requestJson(`/api/superadmin/businesses/${businessId}/photos`, { method: "POST", body: form });
+  const path = typeof result.payload?.path === "string" ? result.payload.path : "";
+  if (!result.ok || !path) {
+    return { ok: false as const, message: result.message || "Не удалось загрузить иконку." };
   }
   return { ok: true as const, path };
 }
@@ -309,6 +406,18 @@ function isVenue(value: unknown): value is VenuePayload {
   return typeof venue.name === "string" && typeof venue.telegram === "boolean" && typeof venue.max === "boolean";
 }
 
+function isSite(value: unknown): value is OwnerSite {
+  if (!value || typeof value !== "object") return false;
+  const site = value as Partial<OwnerSite>;
+  return (
+    typeof site.slug === "string" &&
+    typeof site.published === "boolean" &&
+    typeof site.status === "string" &&
+    typeof site.blocked === "boolean" &&
+    typeof site.archived === "boolean"
+  );
+}
+
 function isDish(value: unknown): value is Dish {
   if (!value || typeof value !== "object") return false;
   const dish = value as Partial<Dish>;
@@ -326,10 +435,30 @@ type Payload = {
   dish?: unknown;
   visible?: unknown;
   path?: unknown;
+  kind?: unknown;
+  theme?: unknown;
+  themeStorage?: unknown;
+  site?: unknown;
+  pwa?: unknown;
 };
 
 type MenuPayload = {
   venue: VenuePayload;
   categories: MenuState["categories"];
   dishes: Dish[];
+  kind?: unknown;
+  theme?: unknown;
+  themeStorage?: unknown;
+  site?: unknown;
+  pwa?: unknown;
 };
+
+function readPwa(value: unknown) {
+  if (!value || typeof value !== "object") return { name: "", icon: "", storage: "ready" as const };
+  const pwa = value as { name?: unknown; icon?: unknown; storage?: unknown };
+  return {
+    name: pwaNameFromValue(pwa.name),
+    icon: typeof pwa.icon === "string" ? pwa.icon : "",
+    storage: pwa.storage === "missing" ? ("missing" as const) : ("ready" as const),
+  };
+}

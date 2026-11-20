@@ -1,5 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { businessKind, isMissingKindColumn } from "@/lib/business-kind";
+import { isMissingThemeColumn, menuTheme, menuThemes, type MenuTheme } from "@/lib/menu-theme";
 import { formatPhone, phoneDigits } from "@/lib/order";
+import { isMissingPwaColumn, pwaNameFromValue, reportPwaIconError, storedPwaName } from "@/lib/pwa-settings";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const filePattern = /^[A-Za-z0-9._-]{1,180}$/;
@@ -43,9 +46,24 @@ export async function loadSuperadminMenu(supabase: SupabaseClient, businessId: s
 
   return {
     ok: true as const,
-    venue: venueFromRow(business),
+    venue: venueFromRow(business.row),
     categories,
     dishes,
+    kind: business.kind,
+    theme: business.theme,
+    themeStorage: business.themeStorage,
+    site: {
+      slug: business.row.slug,
+      published: business.row.is_published === true,
+      status: business.row.status,
+      blocked: business.row.is_blocked === true,
+      archived: business.row.is_archived === true,
+    },
+    pwa: {
+      name: business.pwaName,
+      icon: business.pwaIcon,
+      storage: business.pwaStorage,
+    },
   };
 }
 
@@ -250,6 +268,10 @@ export async function saveSuperadminPhoto(
   file: File,
 ) {
   if (file.size > 5 * 1024 * 1024) return fail("Фото больше 5 МБ. Выберите другое.");
+  if (kind === "pwa-icon") {
+    if (!(await isJpegFile(file))) return fail("Не удалось использовать это изображение. Выберите другое.");
+    return savePwaIcon(supabase, businessId, file);
+  }
   if (file.type !== "image/jpeg") return fail("Не удалось использовать это фото. Попробуйте другой файл.");
   if (kind === "banner") return saveBanner(supabase, businessId, file);
   if (kind === "product" && isId(productId)) return saveProductPhoto(supabase, businessId, productId, file);
@@ -263,6 +285,7 @@ export async function deleteSuperadminPhoto(
   productId: unknown,
 ) {
   if (kind === "banner") return deleteBanner(supabase, businessId);
+  if (kind === "pwa-icon") return deletePwaIcon(supabase, businessId);
   if (kind === "product" && isId(productId)) return deleteProductPhoto(supabase, businessId, productId);
   return fail("Не удалось удалить фотографию.");
 }
@@ -347,6 +370,73 @@ async function saveBanner(supabase: SupabaseClient, businessId: string, file: Fi
   return { ok: true as const, path };
 }
 
+async function savePwaIcon(supabase: SupabaseClient, businessId: string, file: File) {
+  const { data: existing, error: readError } = await supabase
+    .from("businesses")
+    .select("id, pwa_icon_path")
+    .eq("id", businessId)
+    .maybeSingle();
+  const previous = typeof existing?.pwa_icon_path === "string" ? existing.pwa_icon_path : "";
+  if (readError && isMissingPwaColumn(readError)) {
+    return fail("Сохранение приложения пока недоступно. Обновление базы ещё не применено.");
+  }
+  if (readError || existing?.id !== businessId) return fail("Не удалось загрузить иконку.");
+  const path = photoPath(businessId, "pwa-icon", `icon-${Date.now()}.jpg`);
+  if (!path) return fail("Не удалось загрузить иконку.");
+  const uploaded = await upload(supabase, path, file);
+  if (!uploaded.ok) {
+    return fail(reportPwaIconError("storage_upload", { message: uploaded.message, code: uploaded.code }, { path }));
+  }
+  const { data, error } = await supabase
+    .from("businesses")
+    .update({ pwa_icon_path: path })
+    .eq("id", businessId)
+    .select("id, pwa_icon_path")
+    .maybeSingle();
+  if (error || data?.id !== businessId || data.pwa_icon_path !== path) {
+    await supabase.storage.from("menu-photos").remove([path]);
+    if (error && isMissingPwaColumn(error)) {
+      return fail("Сохранение приложения пока недоступно. Обновление базы ещё не применено.");
+    }
+    return fail(
+      reportPwaIconError("database_update", error, {
+        path,
+        saved: typeof data?.pwa_icon_path === "string" ? data.pwa_icon_path : "",
+        id: data?.id ?? "",
+      }),
+    );
+  }
+  if (previous && previous !== path && isPhotoPath(previous, businessId, "pwa-icon")) {
+    await supabase.storage.from("menu-photos").remove([previous]);
+  }
+  return { ok: true as const, path };
+}
+
+async function deletePwaIcon(supabase: SupabaseClient, businessId: string) {
+  const { data: existing, error: readError } = await supabase
+    .from("businesses")
+    .select("id, pwa_icon_path")
+    .eq("id", businessId)
+    .maybeSingle();
+  const previous = typeof existing?.pwa_icon_path === "string" ? existing.pwa_icon_path : "";
+  if (readError && isMissingPwaColumn(readError)) {
+    return fail("Сохранение приложения пока недоступно. Обновление базы ещё не применено.");
+  }
+  if (readError || existing?.id !== businessId) return fail("Не удалось удалить иконку.");
+  if (!previous) return fail("Своей иконки пока нет.");
+  if (!isPhotoPath(previous, businessId, "pwa-icon")) return fail("Не удалось удалить иконку.");
+  const removed = await supabase.storage.from("menu-photos").remove([previous]);
+  if (removed.error) return fail("Не удалось удалить иконку.");
+  const { data, error } = await supabase
+    .from("businesses")
+    .update({ pwa_icon_path: null })
+    .eq("id", businessId)
+    .select("id, pwa_icon_path")
+    .maybeSingle();
+  if (error || data?.id !== businessId || data.pwa_icon_path) return fail("Не удалось удалить иконку.");
+  return { ok: true as const };
+}
+
 async function deleteBanner(supabase: SupabaseClient, businessId: string) {
   const { data: existing, error: readError } = await supabase
     .from("businesses")
@@ -375,7 +465,19 @@ async function upload(supabase: SupabaseClient, path: string, file: File) {
     contentType: "image/jpeg",
     upsert: false,
   });
-  return { ok: !error };
+  return {
+    ok: !error,
+    message: error?.message ?? "",
+    code: String(error?.statusCode ?? ""),
+  };
+}
+
+async function isJpegFile(file: File) {
+  const type = file.type.toLowerCase();
+  if (type === "image/jpeg" || type === "image/jpg" || type === "image/pjpeg") return true;
+  if (type !== "" || !/\.jpe?g$/i.test(file.name)) return false;
+  const header = new Uint8Array(await file.slice(0, 3).arrayBuffer());
+  return header[0] === 0xff && header[1] === 0xd8 && header[2] === 0xff;
 }
 
 async function businessExists(supabase: SupabaseClient, businessId: string) {
@@ -383,15 +485,117 @@ async function businessExists(supabase: SupabaseClient, businessId: string) {
   return !error && data?.id === businessId;
 }
 
+const businessColumns =
+  "id, name, description, address, phone, hours, order_phone, banner_path, telegram_enabled, max_enabled, slug, status, is_published, is_blocked, is_archived";
+
 async function readBusiness(supabase: SupabaseClient, businessId: string) {
+  let includeTheme = true;
+  let includeKind = true;
+  let includePwa = true;
+
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const extra = [
+      includeTheme ? "theme" : "",
+      includeKind ? "kind" : "",
+      includePwa ? "pwa_name, pwa_icon_path" : "",
+    ].filter(Boolean);
+    const result = await supabase
+      .from("businesses")
+      .select(extra.length > 0 ? `${businessColumns}, ${extra.join(", ")}` : businessColumns)
+      .eq("id", businessId)
+      .maybeSingle();
+    if (!result.error) {
+      const row = result.data as BusinessRow | null;
+      if (!row || row.id !== businessId) return null;
+      const icon = typeof row.pwa_icon_path === "string" ? row.pwa_icon_path : "";
+      return {
+        row,
+        kind: businessKind(row.kind),
+        theme: menuTheme(row.theme),
+        themeStorage: includeTheme ? ("ready" as const) : ("missing" as const),
+        pwaName: includePwa ? pwaNameFromValue(row.pwa_name) : "",
+        pwaIcon: includePwa && isPhotoPath(icon, businessId, "pwa-icon") ? icon : "",
+        pwaStorage: includePwa ? ("ready" as const) : ("missing" as const),
+      };
+    }
+    if (includeTheme && isMissingThemeColumn(result.error) && result.error.message?.toLowerCase().includes("theme")) {
+      includeTheme = false;
+      continue;
+    }
+    if (includeKind && isMissingKindColumn(result.error)) {
+      includeKind = false;
+      continue;
+    }
+    if (includePwa && isMissingPwaColumn(result.error)) {
+      includePwa = false;
+      continue;
+    }
+    return null;
+  }
+
+  return null;
+}
+
+export async function saveSuperadminPwa(supabase: SupabaseClient, businessId: string, name: unknown) {
+  if (typeof name !== "string") return fail("Не удалось сохранить название приложения.");
+  const checked = storedPwaName(name);
+  if (!checked.ok) return fail(checked.message);
   const { data, error } = await supabase
     .from("businesses")
-    .select("id, name, description, address, phone, hours, order_phone, banner_path, telegram_enabled, max_enabled")
+    .update({ pwa_name: checked.name })
     .eq("id", businessId)
+    .select("id, pwa_name")
     .maybeSingle();
-  if (error || data?.id !== businessId) return null;
-  return data;
+  if (error && isMissingPwaColumn(error)) {
+    return fail("Сохранение приложения пока недоступно. Обновление базы ещё не применено.");
+  }
+  const savedName = pwaNameFromValue(data?.pwa_name);
+  if (error || data?.id !== businessId || savedName !== (checked.name ?? "")) {
+    return fail("Не удалось сохранить название приложения.");
+  }
+  return { ok: true as const, name: savedName };
 }
+
+export async function saveSuperadminTheme(supabase: SupabaseClient, businessId: string, theme: unknown) {
+  if (typeof theme !== "string" || !menuThemes.includes(theme as MenuTheme)) {
+    return fail("Выберите оформление из списка.");
+  }
+  const { data, error } = await supabase
+    .from("businesses")
+    .update({ theme })
+    .eq("id", businessId)
+    .select("id, theme")
+    .maybeSingle();
+  if (error && isMissingThemeColumn(error)) {
+    return fail("Сохранение оформления пока недоступно. Обновление базы ещё не применено.");
+  }
+  if (error || data?.id !== businessId || menuTheme(data?.theme) !== theme) {
+    return fail("Не удалось сохранить оформление.");
+  }
+  return { ok: true as const, theme: menuTheme(data.theme) };
+}
+
+type BusinessRow = {
+  id: string;
+  name: string;
+  description: string | null;
+  address: string | null;
+  phone: string | null;
+  hours: string | null;
+  order_phone: string | null;
+  banner_path: string | null;
+  telegram_enabled: boolean;
+  max_enabled: boolean;
+  slug: string;
+  status: string;
+  is_published: boolean;
+  is_blocked: boolean;
+  is_archived: boolean;
+  theme?: unknown;
+  kind?: unknown;
+  pwa_name?: unknown;
+  pwa_icon_path?: string | null;
+};
 
 function venueFromRow(row: {
   name: string;
@@ -482,12 +686,12 @@ function optionalPhone(value: string) {
   return { ok: true as const, value: formatted };
 }
 
-function photoPath(businessId: string, folder: "banner" | "products", fileName: string) {
+function photoPath(businessId: string, folder: "banner" | "products" | "pwa-icon", fileName: string) {
   const path = `${businessId}/${folder}/${fileName}`;
   return isPhotoPath(path, businessId, folder) ? path : "";
 }
 
-function isPhotoPath(path: string, businessId: string, folder: "banner" | "products") {
+function isPhotoPath(path: string, businessId: string, folder: "banner" | "products" | "pwa-icon") {
   if (!path || path.length > 240) return false;
   const prefix = `${businessId}/${folder}/`;
   if (!path.startsWith(prefix)) return false;

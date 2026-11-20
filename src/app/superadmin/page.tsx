@@ -9,8 +9,8 @@ export const metadata: Metadata = {
 
 export default function SuperadminPage() {
   return (
-    <div className="cabinet">
-      <SiteShell>
+    <div className="home">
+      <SiteShell bare>
         <SuperadminGate />
       </SiteShell>
     </div>

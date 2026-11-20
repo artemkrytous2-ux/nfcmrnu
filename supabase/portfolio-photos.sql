@@ -14,7 +14,9 @@
 -- но с именем, которого нет в этом файле, не запускайте скрипт вслепую:
 -- две разрешающие политики складываются, две ограничительные тоже остаются вместе.
 --
--- Папка portfolio добавляется к banner и products.
+-- Папка portfolio добавляется к banner, products и pwa-icon.
+-- pwa-icon нельзя выкинуть из шаблона: иначе supabase/pwa-settings.sql
+-- перестанет пропускать иконку приложения при полном удалении.
 -- В ограничительных политиках путь берётся из objects.name, не из venue.name.
 
 create table public.portfolio_photos (
@@ -163,7 +165,7 @@ using (
   bucket_id = 'menu-photos'
   and (storage.foldername(objects.name))[1] = public.current_business_id()::text
   and objects.name ~ (
-    '^' || public.current_business_id()::text || '/(banner|products|portfolio)/[A-Za-z0-9._-]{1,180}$'
+    '^' || public.current_business_id()::text || '/(banner|products|portfolio|pwa-icon)/[A-Za-z0-9._-]{1,180}$'
   )
 );
 
@@ -174,7 +176,7 @@ to authenticated
 with check (
   bucket_id = 'menu-photos'
   and objects.name ~ (
-    '^' || public.current_business_id()::text || '/(banner|products|portfolio)/[A-Za-z0-9._-]{1,180}$'
+    '^' || public.current_business_id()::text || '/(banner|products|portfolio|pwa-icon)/[A-Za-z0-9._-]{1,180}$'
   )
 );
 
@@ -185,13 +187,13 @@ to authenticated
 using (
   bucket_id = 'menu-photos'
   and objects.name ~ (
-    '^' || public.current_business_id()::text || '/(banner|products|portfolio)/[A-Za-z0-9._-]{1,180}$'
+    '^' || public.current_business_id()::text || '/(banner|products|portfolio|pwa-icon)/[A-Za-z0-9._-]{1,180}$'
   )
 )
 with check (
   bucket_id = 'menu-photos'
   and objects.name ~ (
-    '^' || public.current_business_id()::text || '/(banner|products|portfolio)/[A-Za-z0-9._-]{1,180}$'
+    '^' || public.current_business_id()::text || '/(banner|products|portfolio|pwa-icon)/[A-Za-z0-9._-]{1,180}$'
   )
 );
 
@@ -202,7 +204,7 @@ to authenticated
 using (
   bucket_id = 'menu-photos'
   and objects.name ~ (
-    '^' || public.current_business_id()::text || '/(banner|products|portfolio)/[A-Za-z0-9._-]{1,180}$'
+    '^' || public.current_business_id()::text || '/(banner|products|portfolio|pwa-icon)/[A-Za-z0-9._-]{1,180}$'
   )
 );
 
@@ -214,7 +216,7 @@ to authenticated
 using (
   bucket_id = 'menu-photos'
   and public.is_superadmin()
-  and objects.name ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/(banner|products|portfolio)/[A-Za-z0-9._-]{1,180}$'
+  and objects.name ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/(banner|products|portfolio|pwa-icon)/[A-Za-z0-9._-]{1,180}$'
 );
 
 drop policy if exists "Superadmin uploads menu photos" on storage.objects;
@@ -224,7 +226,7 @@ to authenticated
 with check (
   bucket_id = 'menu-photos'
   and public.is_superadmin()
-  and objects.name ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/(banner|products|portfolio)/[A-Za-z0-9._-]{1,180}$'
+  and objects.name ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/(banner|products|portfolio|pwa-icon)/[A-Za-z0-9._-]{1,180}$'
   and exists (
     select 1
     from public.businesses as venue
@@ -239,7 +241,7 @@ to authenticated
 using (
   bucket_id = 'menu-photos'
   and public.is_superadmin()
-  and objects.name ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/(banner|products|portfolio)/[A-Za-z0-9._-]{1,180}$'
+  and objects.name ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/(banner|products|portfolio|pwa-icon)/[A-Za-z0-9._-]{1,180}$'
   and exists (
     select 1
     from public.businesses as venue
@@ -249,7 +251,7 @@ using (
 with check (
   bucket_id = 'menu-photos'
   and public.is_superadmin()
-  and objects.name ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/(banner|products|portfolio)/[A-Za-z0-9._-]{1,180}$'
+  and objects.name ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/(banner|products|portfolio|pwa-icon)/[A-Za-z0-9._-]{1,180}$'
   and exists (
     select 1
     from public.businesses as venue
@@ -265,7 +267,7 @@ to authenticated
 using (
   bucket_id = 'menu-photos'
   and public.is_superadmin()
-  and objects.name ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/(banner|products|portfolio)/[A-Za-z0-9._-]{1,180}$'
+  and objects.name ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/(banner|products|portfolio|pwa-icon)/[A-Za-z0-9._-]{1,180}$'
 );
 
 drop policy if exists "Blocked owner cannot upload menu photos" on storage.objects;
@@ -345,7 +347,7 @@ using (
     from public.businesses
     where businesses.is_published
   )
-  and objects.name ~ '^[0-9a-f-]{36}/(banner|products|portfolio)/[A-Za-z0-9._-]{1,180}$'
+  and objects.name ~ '^[0-9a-f-]{36}/(banner|products|portfolio|pwa-icon)/[A-Za-z0-9._-]{1,180}$'
 );
 
 drop policy if exists "Guests only see open demo and active menu photos" on storage.objects;
@@ -414,7 +416,7 @@ begin
     raise exception 'Адрес страницы не совпадает';
   end if;
 
-  v_pattern := '^' || p_business_id::text || '/(banner|products|portfolio)/[A-Za-z0-9._-]{1,180}$';
+  v_pattern := '^' || p_business_id::text || '/(banner|products|portfolio|pwa-icon)/[A-Za-z0-9._-]{1,180}$';
 
   if exists (
     select 1
@@ -422,7 +424,7 @@ begin
     where bucket_id = 'menu-photos'
       and name ~ v_pattern
   ) then
-    raise exception 'Сначала удалите фотографии, баннер и портфолио этого заведения через Storage API';
+    raise exception 'Сначала удалите фотографии, баннер, портфолио и иконку приложения этого заведения через Storage API';
   end if;
 
   if exists (
@@ -432,7 +434,7 @@ begin
       and split_part(name, '/', 1) = p_business_id::text
       and name !~ v_pattern
   ) then
-    raise exception 'У заведения есть файл вне папок banner, products и portfolio. Удаление остановлено';
+    raise exception 'У заведения есть файл вне папок banner, products, portfolio и pwa-icon. Удаление остановлено';
   end if;
 
   delete from public.orders

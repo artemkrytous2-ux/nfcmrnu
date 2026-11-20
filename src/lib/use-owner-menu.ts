@@ -7,6 +7,7 @@ import { cabinetCopy } from "@/lib/cabinet-copy";
 import { isMissingThemeColumn, menuTheme, menuThemes, type MenuTheme } from "@/lib/menu-theme";
 import { formatPhone, phoneDigits } from "@/lib/order";
 import { isOwnedPhotoPath, MAX_MENU_PHOTO_BYTES, MENU_PHOTOS_BUCKET, photoObjectPath } from "@/lib/photos";
+import { isMissingPwaColumn, pwaNameFromValue, readSquareIconBlob, reportPwaIconError, storedPwaName } from "@/lib/pwa-settings";
 import { getSupabase } from "@/lib/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -79,6 +80,9 @@ export function useOwnerMenu(businessId: string) {
   const [theme, setTheme] = useState<MenuTheme>("default");
   const [themeStorage, setThemeStorage] = useState<"ready" | "missing">("ready");
   const [kind, setKind] = useState<BusinessKind>("food");
+  const [pwaName, setPwaName] = useState("");
+  const [pwaIcon, setStoredPwaIcon] = useState("");
+  const [pwaStorage, setPwaStorage] = useState<"ready" | "missing">("ready");
   const [error, setError] = useState("");
   const [ready, setReady] = useState(false);
   const menuStamp = useRef(0);
@@ -93,6 +97,9 @@ export function useOwnerMenu(businessId: string) {
       setError("");
       setMenu(null);
       setKind("food");
+      setPwaName("");
+      setStoredPwaIcon("");
+      setPwaStorage("ready");
 
       const supabase = getSupabase();
       const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -165,6 +172,9 @@ export function useOwnerMenu(businessId: string) {
       setTheme(loaded.theme);
       setThemeStorage(loaded.storage);
       setKind(loaded.kind);
+      setPwaName(loaded.pwaName);
+      setStoredPwaIcon(loaded.pwaIcon);
+      setPwaStorage(loaded.pwaStorage);
       setMenu({
         venue: venueFromRow(venue, venue.banner_path ?? ""),
         categories,
@@ -745,6 +755,139 @@ export function useOwnerMenu(businessId: string) {
     return { ok: true as const };
   };
 
+  const savePwaName = async (name: string) => {
+    const checked = storedPwaName(name);
+    if (!checked.ok) return checked;
+    const owned = await ownedBusiness(businessId);
+    if (!owned.ok) return owned;
+
+    const { data, error } = await owned.supabase
+      .from("businesses")
+      .update({ pwa_name: checked.name })
+      .eq("id", owned.businessId)
+      .eq("owner_id", owned.userId)
+      .select("id, pwa_name")
+      .maybeSingle();
+    if (error && isMissingPwaColumn(error)) {
+      return { ok: false as const, message: "Сохранение приложения пока недоступно. Обновление базы ещё не применено." };
+    }
+    const savedName = pwaNameFromValue(data?.pwa_name);
+    if (error || data?.id !== owned.businessId || savedName !== (checked.name ?? "")) {
+      return { ok: false as const, message: "Не удалось сохранить название приложения." };
+    }
+    setPwaName(savedName);
+    return { ok: true as const };
+  };
+
+  const setPwaIcon = async (file: File) => {
+    const owned = await ownedBusiness(businessId);
+    if (!owned.ok) return owned;
+
+    const { data: existing, error: readError } = await owned.supabase
+      .from("businesses")
+      .select("id, pwa_icon_path")
+      .eq("id", owned.businessId)
+      .eq("owner_id", owned.userId)
+      .maybeSingle();
+    const previous = typeof existing?.pwa_icon_path === "string" ? existing.pwa_icon_path : "";
+    if (readError && isMissingPwaColumn(readError)) {
+      return { ok: false as const, message: "Сохранение приложения пока недоступно. Обновление базы ещё не применено." };
+    }
+    if (readError || !existing || existing.id !== owned.businessId) {
+      return { ok: false as const, message: "Не удалось загрузить иконку." };
+    }
+
+    const path = photoObjectPath(owned.businessId, "pwa-icon", `icon-${Date.now()}.jpg`);
+    if (!path) return { ok: false as const, message: "Не удалось загрузить иконку." };
+
+    let blob: Blob;
+    try {
+      blob = await readSquareIconBlob(file);
+    } catch {
+      return { ok: false as const, message: "Не удалось использовать это изображение. Выберите другое." };
+    }
+    if (blob.size > MAX_MENU_PHOTO_BYTES) {
+      return { ok: false as const, message: "Иконка больше 5 МБ. Выберите другое изображение." };
+    }
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const uploaded = await owned.supabase.storage.from(MENU_PHOTOS_BUCKET).upload(path, bytes, {
+      contentType: "image/jpeg",
+      upsert: false,
+    });
+    if (uploaded.error) {
+      return {
+        ok: false as const,
+        message: reportPwaIconError("storage_upload", uploaded.error, { path }),
+      };
+    }
+
+    const { data, error } = await owned.supabase
+      .from("businesses")
+      .update({ pwa_icon_path: path })
+      .eq("id", owned.businessId)
+      .eq("owner_id", owned.userId)
+      .select("id, pwa_icon_path")
+      .maybeSingle();
+    if (error || data?.id !== owned.businessId || data?.pwa_icon_path !== path) {
+      await owned.supabase.storage.from(MENU_PHOTOS_BUCKET).remove([path]);
+      if (error && isMissingPwaColumn(error)) {
+        return { ok: false as const, message: "Сохранение приложения пока недоступно. Обновление базы ещё не применено." };
+      }
+      return {
+        ok: false as const,
+        message: reportPwaIconError("database_update", error, {
+          path,
+          saved: typeof data?.pwa_icon_path === "string" ? data.pwa_icon_path : "",
+          id: data?.id ?? "",
+        }),
+      };
+    }
+    if (previous && previous !== path && isOwnedPhotoPath(previous, owned.businessId, "pwa-icon")) {
+      await owned.supabase.storage.from(MENU_PHOTOS_BUCKET).remove([previous]);
+    }
+    setStoredPwaIcon(path);
+    return { ok: true as const, path };
+  };
+
+  const deletePwaIcon = async () => {
+    const owned = await ownedBusiness(businessId);
+    if (!owned.ok) return owned;
+
+    const { data: existing, error: readError } = await owned.supabase
+      .from("businesses")
+      .select("id, pwa_icon_path")
+      .eq("id", owned.businessId)
+      .eq("owner_id", owned.userId)
+      .maybeSingle();
+    const previous = typeof existing?.pwa_icon_path === "string" ? existing.pwa_icon_path : "";
+    if (readError && isMissingPwaColumn(readError)) {
+      return { ok: false as const, message: "Сохранение приложения пока недоступно. Обновление базы ещё не применено." };
+    }
+    if (readError || !existing || existing.id !== owned.businessId) {
+      return { ok: false as const, message: "Не удалось удалить иконку." };
+    }
+    if (!previous) return { ok: false as const, message: "Своей иконки пока нет." };
+    if (!isOwnedPhotoPath(previous, owned.businessId, "pwa-icon")) {
+      return { ok: false as const, message: "Не удалось удалить иконку." };
+    }
+
+    const removed = await owned.supabase.storage.from(MENU_PHOTOS_BUCKET).remove([previous]);
+    if (removed.error) return { ok: false as const, message: "Не удалось удалить иконку." };
+
+    const { data, error } = await owned.supabase
+      .from("businesses")
+      .update({ pwa_icon_path: null })
+      .eq("id", owned.businessId)
+      .eq("owner_id", owned.userId)
+      .select("id, pwa_icon_path")
+      .maybeSingle();
+    if (error || data?.id !== owned.businessId || data?.pwa_icon_path) {
+      return { ok: false as const, message: "Не удалось удалить иконку." };
+    }
+    setStoredPwaIcon("");
+    return { ok: true as const };
+  };
+
   return {
     menu,
     site,
@@ -765,6 +908,12 @@ export function useOwnerMenu(businessId: string) {
     deleteProductPhoto,
     setBannerPhoto,
     deleteBannerPhoto,
+    pwaName,
+    pwaIcon,
+    pwaStorage,
+    savePwaName,
+    setPwaIcon,
+    deletePwaIcon,
   };
 }
 
@@ -774,10 +923,15 @@ const ownerBusinessColumns =
 async function loadOwnedBusiness(supabase: SupabaseClient, businessId: string, userId: string) {
   let includeTheme = true;
   let includeKind = true;
+  let includePwa = true;
   let lastError: { code?: string; message?: string } | null = null;
 
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const extra = [includeTheme ? "theme" : "", includeKind ? "kind" : ""].filter(Boolean);
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const extra = [
+      includeTheme ? "theme" : "",
+      includeKind ? "kind" : "",
+      includePwa ? "pwa_name, pwa_icon_path" : "",
+    ].filter(Boolean);
     const result = await supabase
       .from("businesses")
       .select(extra.length > 0 ? `${ownerBusinessColumns}, ${extra.join(", ")}` : ownerBusinessColumns)
@@ -785,13 +939,17 @@ async function loadOwnedBusiness(supabase: SupabaseClient, businessId: string, u
       .eq("owner_id", userId)
       .maybeSingle();
     if (!result.error) {
-      const venue = result.data as (BusinessRow & { theme?: unknown; kind?: unknown }) | null;
+      const venue = result.data as (BusinessRow & { theme?: unknown; kind?: unknown; pwa_name?: unknown; pwa_icon_path?: unknown }) | null;
+      const icon = typeof venue?.pwa_icon_path === "string" ? venue.pwa_icon_path : "";
       return {
         venue,
         theme: menuTheme(venue?.theme),
         kind: businessKind(venue?.kind),
         error: null,
         storage: includeTheme ? ("ready" as const) : ("missing" as const),
+        pwaName: includePwa ? pwaNameFromValue(venue?.pwa_name) : "",
+        pwaIcon: includePwa && venue && isOwnedPhotoPath(icon, venue.id, "pwa-icon") ? icon : "",
+        pwaStorage: includePwa ? ("ready" as const) : ("missing" as const),
       };
     }
 
@@ -804,6 +962,10 @@ async function loadOwnedBusiness(supabase: SupabaseClient, businessId: string, u
       includeKind = false;
       continue;
     }
+    if (includePwa && isMissingPwaColumn(result.error)) {
+      includePwa = false;
+      continue;
+    }
     break;
   }
 
@@ -813,6 +975,9 @@ async function loadOwnedBusiness(supabase: SupabaseClient, businessId: string, u
     kind: "food" as const,
     error: lastError,
     storage: "ready" as const,
+    pwaName: "",
+    pwaIcon: "",
+    pwaStorage: "ready" as const,
   };
 }
 

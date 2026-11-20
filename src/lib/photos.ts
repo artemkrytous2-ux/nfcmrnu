@@ -21,12 +21,14 @@ export function menuPhotoUrl(path: string) {
   return data.publicUrl;
 }
 
-export function photoObjectPath(businessId: string, folder: "banner" | "products", fileName: string) {
+export type MenuPhotoFolder = "banner" | "products" | "pwa-icon";
+
+export function photoObjectPath(businessId: string, folder: MenuPhotoFolder, fileName: string) {
   const path = `${businessId}/${folder}/${fileName}`;
   return isOwnedPhotoPath(path, businessId, folder) ? path : "";
 }
 
-export function isOwnedPhotoPath(path: string, businessId: string, folder: "banner" | "products") {
+export function isOwnedPhotoPath(path: string, businessId: string, folder: MenuPhotoFolder) {
   if (!path || path.length > 240) return false;
   const prefix = `${businessId}/${folder}/`;
   if (!path.startsWith(prefix)) return false;

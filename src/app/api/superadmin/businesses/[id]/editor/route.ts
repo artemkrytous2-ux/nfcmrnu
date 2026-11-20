@@ -8,7 +8,9 @@ import {
   loadSuperadminMenu,
   renameSuperadminCategory,
   saveSuperadminProduct,
+  saveSuperadminPwa,
   saveSuperadminSettings,
+  saveSuperadminTheme,
   setSuperadminProductVisible,
 } from "@/lib/superadmin-editor";
 
@@ -34,7 +36,11 @@ export async function POST(request: Request, context: Context) {
   const result =
     action === "settings"
       ? await saveSuperadminSettings(access.supabase, id, body ?? {})
-      : action === "addCategory"
+      : action === "theme"
+        ? await saveSuperadminTheme(access.supabase, id, body?.theme)
+        : action === "pwa"
+          ? await saveSuperadminPwa(access.supabase, id, body?.name)
+        : action === "addCategory"
         ? await addSuperadminCategory(access.supabase, id, body?.name)
         : action === "renameCategory"
           ? await renameSuperadminCategory(access.supabase, id, body?.categoryId, body?.name)

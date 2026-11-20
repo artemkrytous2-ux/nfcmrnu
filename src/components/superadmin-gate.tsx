@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
+import Link from "next/link";
 import { SuperadminHome } from "@/components/superadmin-home";
+import { authFieldClass, authPrimaryButton } from "@/components/auth-frame";
 import { getSupabase } from "@/lib/supabase";
 
 type Phase = "checking" | "signedOut" | "allowed" | "denied" | "error";
@@ -170,72 +172,80 @@ export function SuperadminGate() {
 
   if (phase === "signedOut") {
     return (
-      <div className="mx-auto w-full max-w-md px-5 py-16 sm:px-8">
-        <section className="rounded-3xl border border-line bg-card p-6 sm:p-8">
-          <p className="text-xs font-medium tracking-[0.22em] text-accent uppercase">Администратор</p>
-          <h1 className="font-display mt-3 text-4xl leading-none">Вход для администратора</h1>
-          <p className="mt-4 text-sm leading-6 text-muted">
-            Страница только для администратора NFCMENU. Регистрации на сайте нет.
-          </p>
-          <form onSubmit={signIn} className="mt-6 grid gap-4">
-            <label className="grid gap-2 text-sm">
-              <span className="text-muted">Почта</span>
-              <input
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className={fieldClass}
-                placeholder="admin@example.com"
-              />
-            </label>
-            <label className="grid gap-2 text-sm">
-              <span className="text-muted">Пароль</span>
-              <input
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                className={fieldClass}
-              />
-            </label>
-            {formError ? (
-              <p className="text-sm text-accent" role="alert">
-                {formError}
-              </p>
-            ) : null}
-            <button
-              type="submit"
-              disabled={pending}
-              className="h-12 rounded-full bg-accent px-5 text-sm font-medium text-[#062117] disabled:opacity-60"
-            >
-              {pending ? "Входим…" : "Войти"}
-            </button>
-          </form>
-        </section>
+      <div className="min-h-dvh w-full overflow-y-auto">
+        <div className="flex min-h-dvh w-full items-center justify-center px-4 py-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+          <section className="w-full max-w-md rounded-3xl border border-line bg-card px-5 py-6 sm:px-8 sm:py-8">
+            <Link href="/" className="text-[15px] font-extrabold tracking-[0.04em] text-accent uppercase">
+              NFCMENU
+            </Link>
+            <h1 className="mt-6 text-[28px] leading-[1.05] font-extrabold tracking-[-0.03em] text-foreground">
+              Вход для администратора
+            </h1>
+            <p className="mt-4 text-[15px] leading-6 text-muted">
+              Страница только для администратора NFCMENU. Регистрации на сайте нет.
+            </p>
+            <form onSubmit={signIn} className="mt-6 grid gap-4">
+              <label className="grid gap-2 text-[15px]">
+                <span className="text-muted">Электронная почта</span>
+                <input
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  className={authFieldClass}
+                />
+              </label>
+              <label className="grid gap-2 text-[15px]">
+                <span className="text-muted">Пароль</span>
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  className={authFieldClass}
+                />
+              </label>
+              {formError ? (
+                <p className="text-sm text-accent" role="alert">
+                  {formError}
+                </p>
+              ) : null}
+              <button type="submit" disabled={pending} className={authPrimaryButton}>
+                {pending ? "Входим…" : "Войти"}
+              </button>
+            </form>
+          </section>
+        </div>
       </div>
     );
   }
 
   return (
     <div>
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-5 pt-8 sm:px-8">
-        <p className="truncate text-sm text-muted">{accountEmail || "Администратор"}</p>
-        <button
-          type="button"
-          onClick={signOut}
-          disabled={pending}
-          className="inline-flex h-9 shrink-0 items-center rounded-full border border-line px-3 text-xs text-muted disabled:opacity-60"
-        >
-          Выйти
-        </button>
-      </div>
+      <header className="sticky top-0 z-20 border-b border-line bg-background/90 backdrop-blur-md">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-5 py-3 sm:px-8">
+          <Link href="/" className="shrink-0 text-[15px] font-extrabold tracking-[0.04em] text-accent uppercase">
+            NFCMENU
+          </Link>
+          <div className="flex min-w-0 items-center gap-2">
+            <p className="truncate text-[13px] text-muted">{accountEmail || "Администратор"}</p>
+            <button
+              type="button"
+              onClick={signOut}
+              disabled={pending}
+              className="inline-flex h-9 shrink-0 items-center rounded-full border border-line px-3 text-[13px] text-foreground disabled:opacity-60"
+            >
+              Выйти
+            </button>
+          </div>
+        </div>
+      </header>
       {phase === "allowed" ? <SuperadminHome /> : null}
       {phase === "denied" ? (
         <div className="mx-auto w-full max-w-6xl px-5 pb-16 sm:px-8">
           <section className="rounded-3xl border border-line bg-card p-6 sm:p-8">
-            <h1 className="font-display text-4xl leading-none">Доступ запрещён</h1>
-            <p className="mt-4 max-w-xl text-sm leading-6 text-muted">
+            <h1 className="text-[28px] leading-[1.05] font-extrabold tracking-[-0.03em]">Доступ запрещён</h1>
+            <p className="mt-4 max-w-xl text-[15px] leading-6 text-muted">
               Этот аккаунт не является администратором NFCMENU.
             </p>
           </section>
@@ -260,6 +270,3 @@ function loginError(message: string) {
   if (text.includes("email not confirmed")) return "Почта ещё не подтверждена";
   return "Не удалось войти. Проверьте почту и пароль.";
 }
-
-const fieldClass =
-  "h-12 w-full rounded-2xl border border-line bg-background px-4 text-sm text-foreground outline-none placeholder:text-muted/70 focus:border-accent/60";

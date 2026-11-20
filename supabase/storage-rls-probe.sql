@@ -1,5 +1,6 @@
 -- Временная проверка Storage RLS.
--- Только две политики из supabase/archive.sql.
+-- Только две политики чтения и удаления суперадминистратора.
+-- Список папок совпадает с supabase/pwa-settings.sql: banner, products, pwa-icon.
 -- Не добавляет is_archived, не меняет функции и остальные политики.
 -- Запускать отдельно. Полный archive.sql после проверки пересоздаёт эти же политики.
 
@@ -10,7 +11,7 @@ to authenticated
 using (
   bucket_id = 'menu-photos'
   and public.is_superadmin()
-  and name ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/(banner|products)/[A-Za-z0-9._-]{1,180}$'
+  and name ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/(banner|products|pwa-icon)/[A-Za-z0-9._-]{1,180}$'
 );
 
 drop policy if exists "Superadmin deletes venue menu files" on storage.objects;
@@ -20,5 +21,5 @@ to authenticated
 using (
   bucket_id = 'menu-photos'
   and public.is_superadmin()
-  and name ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/(banner|products)/[A-Za-z0-9._-]{1,180}$'
+  and name ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/(banner|products|pwa-icon)/[A-Za-z0-9._-]{1,180}$'
 );

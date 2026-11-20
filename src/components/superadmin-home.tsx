@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { MoreHorizontal } from "lucide-react";
 import { AdminPanel } from "@/components/admin-panel";
 import { businessKindChoices, type BusinessKind } from "@/lib/business-kind";
 import { getSupabase } from "@/lib/supabase";
@@ -167,11 +168,11 @@ export function SuperadminHome() {
   if (openedId) {
     return (
       <div>
-        <div className="mx-auto flex w-full max-w-6xl px-5 pt-8 sm:px-8">
+        <div className="mx-auto flex w-full max-w-6xl px-5 pt-5 sm:px-8">
           <button
             type="button"
             onClick={() => setOpenedId(null)}
-            className="inline-flex h-9 items-center rounded-full border border-line px-3 text-xs text-muted"
+            className="inline-flex h-10 items-center rounded-full border border-line px-4 text-sm text-foreground"
           >
             К списку
           </button>
@@ -184,13 +185,12 @@ export function SuperadminHome() {
   return (
     <div className="mx-auto grid w-full max-w-6xl gap-6 px-5 py-8 sm:px-8 sm:py-12">
       <div>
-        <p className="text-xs font-medium tracking-[0.22em] text-accent uppercase">Администратор</p>
-        <h1 className="font-display mt-2 text-4xl leading-none">Заведения</h1>
+        <h1 className="text-[28px] leading-[1.05] font-extrabold tracking-[-0.03em]">Заведения</h1>
       </div>
 
       <section className="rounded-3xl border border-line bg-card p-6 sm:p-8">
-        <h2 className="font-display text-3xl leading-none">Создать заведение</h2>
-        <p className="mt-3 max-w-xl text-sm leading-6 text-muted">
+        <h2 className="text-xl font-extrabold tracking-[-0.03em]">Создать заведение</h2>
+        <p className="mt-3 max-w-xl text-[15px] leading-6 text-muted">
           Создаётся черновик без владельца. Публичная страница при этом не открывается.
         </p>
         <form onSubmit={createDraft} className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -238,7 +238,7 @@ export function SuperadminHome() {
             <button
               type="submit"
               disabled={pending}
-              className="h-12 rounded-full bg-accent px-5 text-sm font-medium text-[#062117] disabled:opacity-60"
+              className="home-cta h-12 rounded-full px-5 text-sm font-medium disabled:opacity-60"
             >
               {pending ? "Создаём…" : "Создать заведение"}
             </button>
@@ -425,9 +425,10 @@ function BusinessSection({
 }) {
   return (
     <section className="grid gap-3">
-      <h2 className="font-display text-3xl leading-none">{title}</h2>
+      <h2 className="text-[15px] font-extrabold tracking-[0.04em] text-muted uppercase">{title}</h2>
       {businesses.length === 0 ? <p className="text-sm text-muted">Пока пусто</p> : null}
-      <ul className="grid gap-3">
+      {businesses.length > 0 ? (
+      <ul className="rounded-3xl border border-line bg-card px-4 sm:px-5">
         {businesses.map((business) => (
           <BusinessCard
             key={business.id}
@@ -444,6 +445,7 @@ function BusinessSection({
           />
         ))}
       </ul>
+      ) : null}
     </section>
   );
 }
@@ -473,6 +475,9 @@ function BusinessCard({
 }) {
   const [note, setNote] = useState("");
   const [noteTone, setNoteTone] = useState<"muted" | "accent">("muted");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [panel, setPanel] = useState<"owner" | "delete" | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const busy = action?.id === business.id;
   const archiving = busy && action?.kind === "archive";
   const deleting = busy && action?.kind === "delete";
@@ -507,76 +512,100 @@ function BusinessCard({
     }
   };
 
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = (event: PointerEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
+
+  const run = (action: () => void) => {
+    setMenuOpen(false);
+    action();
+  };
+
   return (
-    <li className="rounded-2xl border border-line bg-card p-4 sm:p-5">
-      <div className="flex flex-wrap items-center gap-2">
-        <h3 className="font-display text-2xl leading-none sm:text-3xl">{business.name}</h3>
-        <span className="rounded-full border border-accent/40 px-2.5 py-1 text-[11px] tracking-[0.14em] text-accent uppercase">
-          {statusLabel[business.status] ?? business.status}
-        </span>
+    <li className="border-b border-line last:border-b-0">
+      <div className="flex items-center gap-3 py-3">
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate text-[15px] font-extrabold tracking-[-0.03em]">{business.name}</h3>
+          <p className="truncate text-[13px] text-muted">
+            /{business.slug}
+            {" · "}
+            {statusLabel[business.status] ?? business.status}
+            {business.isBlocked ? " · заблокировано" : ""}
+            {business.hasOwner ? "" : " · без владельца"}
+          </p>
+        </div>
+        <div className="relative shrink-0" ref={menuRef}>
+          <button
+            type="button"
+            aria-label={`Действия: ${business.name}`}
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((open) => !open)}
+            className="inline-flex size-10 items-center justify-center rounded-full text-foreground hover:bg-card"
+          >
+            <MoreHorizontal className="size-5" aria-hidden="true" />
+          </button>
+          {menuOpen ? (
+            <div className="absolute right-0 z-30 mt-1 w-56 max-w-[calc(100vw-2rem)] rounded-2xl border border-line bg-card p-1">
+              <MenuItem onClick={() => run(() => onOpen(business.id))}>Открыть</MenuItem>
+              {business.hasOwner ? (
+                <MenuItem onClick={() => run(() => onOpen(business.id))}>Кабинет владельца</MenuItem>
+              ) : null}
+              <MenuItem onClick={() => run(openSite)}>Открыть сайт</MenuItem>
+              <MenuItem onClick={() => run(() => void copyLink())}>Копировать ссылку</MenuItem>
+              {onStatus && statusTarget ? (
+                <MenuItem disabled={busy} onClick={() => run(() => onStatus(business, statusTarget.status))}>
+                  {savingStatus ? "Сохраняем…" : statusTarget.label}
+                </MenuItem>
+              ) : null}
+              {onArchive ? (
+                <MenuItem disabled={busy} onClick={() => run(() => onArchive(business.id))}>
+                  {archiving ? "Сохраняем…" : "В архив"}
+                </MenuItem>
+              ) : null}
+              {onRestore ? (
+                <MenuItem disabled={busy} onClick={() => run(() => onRestore(business.id))}>
+                  {archiving ? "Сохраняем…" : "Восстановить"}
+                </MenuItem>
+              ) : null}
+              {!business.hasOwner && onAssignOwner ? (
+                <MenuItem onClick={() => run(() => setPanel("owner"))}>Назначить владельца</MenuItem>
+              ) : null}
+              {onRemove && onSlugConfirm ? (
+                <MenuItem onClick={() => run(() => setPanel("delete"))}>Удалить навсегда</MenuItem>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
       </div>
-      <p className="mt-1 truncate text-sm text-muted">/{business.slug}</p>
-      <p className="mt-2 text-xs text-muted sm:text-sm">
-        Владелец: {business.hasOwner ? "назначен" : "не назначен"}
-        {" · "}
-        Блокировка: {business.isBlocked ? "да" : "нет"}
-      </p>
       {business.isBlocked && !business.isArchived ? (
-        <p className="mt-2 text-xs text-accent">Заблокированное заведение нельзя активировать.</p>
+        <p className="pb-3 text-[13px] text-accent">Заблокированное заведение нельзя активировать.</p>
       ) : null}
-      <div className="mt-3 flex flex-wrap gap-2">
-        {onStatus && statusTarget ? (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => onStatus(business, statusTarget.status)}
-            className={accentButton}
-          >
-            {savingStatus ? "Сохраняем…" : statusTarget.label}
-          </button>
-        ) : null}
-        <button type="button" onClick={openSite} className={quietButton}>
-          Открыть сайт
-        </button>
-        <button type="button" onClick={() => void copyLink()} className={quietButton}>
-          Копировать ссылку
-        </button>
-        {business.hasOwner ? (
-          <button
-            type="button"
-            onClick={() => window.open("/admin", "_blank", "noopener,noreferrer")}
-            className={quietButton}
-          >
-            Кабинет владельца
-          </button>
-        ) : null}
-        <button type="button" onClick={() => onOpen(business.id)} className={quietButton}>
-          Открыть
-        </button>
-        {onArchive ? (
-          <button type="button" disabled={busy} onClick={() => onArchive(business.id)} className={quietButton}>
-            {archiving ? "Сохраняем…" : "В архив"}
-          </button>
-        ) : null}
-        {onRestore ? (
-          <button type="button" disabled={busy} onClick={() => onRestore(business.id)} className={quietButton}>
-            {archiving ? "Сохраняем…" : "Восстановить"}
-          </button>
-        ) : null}
-      </div>
       {note ? (
-        <p className={`mt-3 text-sm ${noteTone === "accent" ? "text-accent" : "text-muted"}`} role="status">
+        <p className={`pb-3 text-[13px] ${noteTone === "accent" ? "text-accent" : "text-muted"}`} role="status">
           {note}
         </p>
       ) : null}
-      {!business.hasOwner && onAssignOwner ? (
+      {panel === "owner" && !business.hasOwner && onAssignOwner ? (
         <OwnerAssignForm
           busy={busy && action?.kind === "owner"}
+          onCancel={() => setPanel(null)}
           onSubmit={(email, password) => onAssignOwner(business.id, email, password)}
         />
       ) : null}
-      {onRemove && onSlugConfirm ? (
-        <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+      {panel === "delete" && onRemove && onSlugConfirm ? (
+        <div className="grid gap-3 pb-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
           <label className="grid gap-2 text-sm">
             <span className="text-muted">Введите адрес страницы, чтобы удалить навсегда</span>
             <input
@@ -601,6 +630,27 @@ function BusinessCard({
   );
 }
 
+function MenuItem({
+  children,
+  disabled,
+  onClick,
+}: {
+  children: string;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className="block w-full rounded-xl px-3 py-2.5 text-left text-sm text-foreground hover:bg-background disabled:opacity-60"
+    >
+      {children}
+    </button>
+  );
+}
+
 function isPublic(business: Business) {
   return (business.status === "demo" || business.status === "active") && !business.isBlocked && !business.isArchived;
 }
@@ -612,20 +662,21 @@ function publicUrl(slug: string) {
 function OwnerAssignForm({
   busy,
   onSubmit,
+  onCancel,
 }: {
   busy: boolean;
   onSubmit: (email: string, password: string) => Promise<string | null>;
+  onCancel: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
   const close = () => {
-    setOpen(false);
     setEmail("");
     setPassword("");
     setError("");
+    onCancel();
   };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -639,21 +690,8 @@ function OwnerAssignForm({
     close();
   };
 
-  if (!open) {
-    return (
-      <button
-        type="button"
-        disabled={busy}
-        onClick={() => setOpen(true)}
-        className="mt-5 inline-flex h-9 items-center rounded-full border border-line px-3 text-xs text-muted disabled:opacity-60"
-      >
-        Назначить владельца
-      </button>
-    );
-  }
-
   return (
-    <form onSubmit={(event) => void submit(event)} className="mt-5 grid gap-3 sm:grid-cols-2">
+    <form onSubmit={(event) => void submit(event)} className="grid gap-3 pb-4 sm:grid-cols-2">
       <label className="grid gap-2 text-sm">
         <span className="text-muted">Email владельца</span>
         <input
@@ -683,7 +721,7 @@ function OwnerAssignForm({
         <button
           type="submit"
           disabled={busy}
-          className="h-12 rounded-full bg-accent px-5 text-sm font-medium text-[#062117] disabled:opacity-60"
+          className="home-cta h-12 rounded-full px-5 text-sm font-medium disabled:opacity-60"
         >
           {busy ? "Создаём…" : "Создать аккаунт и назначить"}
         </button>
@@ -700,9 +738,5 @@ function OwnerAssignForm({
   );
 }
 
-const quietButton =
-  "inline-flex h-9 items-center justify-center rounded-full border border-line px-3 text-xs text-muted disabled:opacity-60";
-const accentButton =
-  "inline-flex h-9 items-center justify-center rounded-full bg-accent px-3 text-xs font-medium text-[#062117] disabled:opacity-60";
 const fieldClass =
   "h-12 w-full rounded-2xl border border-line bg-background px-4 text-sm text-foreground outline-none placeholder:text-muted/70 focus:border-accent/60";

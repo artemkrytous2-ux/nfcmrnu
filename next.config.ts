@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
+import { HTML_LIMITED_BOT_UA_RE } from "next/dist/shared/lib/router/utils/is-bot";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  htmlLimitedBots: new RegExp(`${HTML_LIMITED_BOT_UA_RE.source}|iPhone|iPad`),
   skipTrailingSlashRedirect: true,
   cacheComponents: true,
   partialPrefetching: true,

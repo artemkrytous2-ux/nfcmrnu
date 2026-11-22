@@ -1,11 +1,48 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { PublicMenu } from "@/components/public-menu";
+import { loadVenuePwa } from "@/lib/venue-pwa";
 
-export const metadata: Metadata = {
-  title: "Меню — NFCMENU",
-  description: "Публичное меню заведения.",
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const venue = await loadVenuePwa(slug);
+  if (!venue) {
+    return {
+      title: "Меню — NFCMENU",
+      description: "Публичное меню заведения.",
+    };
+  }
+
+  const apple = venue.iconPath
+    ? [{ url: `/m/${venue.slug}/apple-icon`, sizes: "180x180", type: "image/png" }]
+    : [{ url: "/icons/icon-180.png", sizes: "180x180", type: "image/png" }];
+  const icon = venue.iconPath
+    ? [
+        { url: `/m/${venue.slug}/icon`, sizes: "512x512", type: "image/jpeg" },
+        { url: `/m/${venue.slug}/icon`, sizes: "192x192", type: "image/jpeg" },
+      ]
+    : [
+        { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+        { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+      ];
+
+  return {
+    title: venue.title,
+    description: "Публичное меню заведения.",
+    applicationName: venue.title,
+    manifest: `/m/${venue.slug}/manifest.webmanifest`,
+    appleWebApp: {
+      capable: true,
+      title: venue.title,
+      statusBarStyle: "black",
+    },
+    icons: { icon, apple },
+  };
+}
 
 export default function PublicMenuPage({
   params,

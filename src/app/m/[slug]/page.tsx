@@ -40,6 +40,9 @@ export async function generateMetadata({
       title: venue.title,
       statusBarStyle: "black",
     },
+    other: {
+      "apple-mobile-web-app-capable": "yes",
+    },
     icons: { icon, apple },
   };
 }

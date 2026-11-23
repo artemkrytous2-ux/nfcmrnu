@@ -19,6 +19,7 @@ type BusinessRow = {
   max_enabled: boolean;
   theme?: unknown;
   kind?: unknown;
+  pwa_prompt_enabled?: unknown;
 };
 
 type CategoryRow = {
@@ -47,6 +48,7 @@ export function usePublicMenu(slug: string) {
   const [kind, setKind] = useState<BusinessKind>("food");
   const [ready, setReady] = useState(false);
   const [unavailable, setUnavailable] = useState(false);
+  const [promptEnabled, setPromptEnabled] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -57,6 +59,7 @@ export function usePublicMenu(slug: string) {
       setTheme("default");
       setKind("food");
       setUnavailable(false);
+      setPromptEnabled(false);
 
       if (!slugPattern.test(slug)) {
         if (!active) return;
@@ -118,6 +121,7 @@ export function usePublicMenu(slug: string) {
           visible: true,
         }));
 
+      setPromptEnabled(venue.pwa_prompt_enabled === true);
       setMenu({
         venue: {
           name: venue.name.trim(),
@@ -141,6 +145,7 @@ export function usePublicMenu(slug: string) {
     void load().catch(() => {
       if (!active) return;
       setMenu(null);
+      setPromptEnabled(false);
       setUnavailable(true);
       setReady(true);
     });
@@ -150,7 +155,7 @@ export function usePublicMenu(slug: string) {
     };
   }, [slug]);
 
-  return { menu, theme, kind, ready, unavailable };
+  return { menu, theme, kind, ready, unavailable, promptEnabled };
 }
 
 async function loadPublishedBusiness(
@@ -167,10 +172,15 @@ async function loadBusinessRow(
 ) {
   let includeTheme = true;
   let includeKind = true;
+  let includePrompt = true;
   let lastError: { code?: string; message?: string } | null = null;
 
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const extra = [includeTheme ? "theme" : "", includeKind ? "kind" : ""].filter(Boolean);
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const extra = [
+      includeTheme ? "theme" : "",
+      includeKind ? "kind" : "",
+      includePrompt ? "pwa_prompt_enabled" : "",
+    ].filter(Boolean);
     const result = await supabase
       .from("businesses")
       .select(extra.length > 0 ? `${columns}, ${extra.join(", ")}` : columns)
@@ -180,6 +190,10 @@ async function loadBusinessRow(
     if (!result.error) return { venue: result.data as BusinessRow | null, error: null };
 
     lastError = result.error;
+    if (includePrompt && isMissingPromptColumn(result.error)) {
+      includePrompt = false;
+      continue;
+    }
     if (includeTheme && isMissingThemeColumn(result.error) && result.error.message?.toLowerCase().includes("theme")) {
       includeTheme = false;
       continue;
@@ -192,4 +206,16 @@ async function loadBusinessRow(
   }
 
   return { venue: null, error: lastError };
+}
+
+function isMissingPromptColumn(error: { code?: string; message?: string } | null | undefined) {
+  if (!error) return false;
+  const message = error.message?.toLowerCase() ?? "";
+  if (!message.includes("pwa_prompt_enabled")) return false;
+  return (
+    error.code === "42703" ||
+    error.code === "PGRST204" ||
+    message.includes("does not exist") ||
+    message.includes("schema cache")
+  );
 }

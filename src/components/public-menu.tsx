@@ -3,16 +3,18 @@
 import { useSearchParams } from "next/navigation";
 import { BeautySite } from "@/components/beauty/beauty-site";
 import { MenuBoard } from "@/components/menu-board";
+import { VenueInstallPrompt } from "@/components/venue-install-prompt";
 import { menuTheme, menuThemeClass } from "@/lib/menu-theme";
 import { usePublicMenu } from "@/lib/use-public-menu";
 
 export function PublicMenu({ slug }: { slug: string }) {
-  const { menu, theme, kind, ready, unavailable } = usePublicMenu(slug);
+  const { menu, theme, kind, ready, unavailable, promptEnabled } = usePublicMenu(slug);
   const preview = useSearchParams().get("theme");
   const shown = preview === null ? theme : menuTheme(preview);
 
   return (
     <div className={`guest ${menuThemeClass(shown)} min-h-full`}>
+      {ready && menu && !unavailable ? <VenueInstallPrompt slug={slug} enabled={promptEnabled} /> : null}
       {!ready ? (
         <MenuBoard menu={null} ready={false} cartScope={slug} />
       ) : unavailable || !menu ? (

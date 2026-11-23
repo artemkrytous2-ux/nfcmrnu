@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { PublicMenu } from "@/components/public-menu";
-import { loadVenuePwa } from "@/lib/venue-pwa";
+import { listPublishedVenueSlugs, loadVenuePwaMetadata } from "@/lib/venue-pwa";
+
+export async function generateStaticParams() {
+  const slugs = await listPublishedVenueSlugs();
+  return slugs.map((slug) => ({ slug }));
+}
 
 export async function generateMetadata({
   params,
@@ -9,7 +14,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const venue = await loadVenuePwa(slug);
+  const venue = await loadVenuePwaMetadata(slug);
   if (!venue) {
     return {
       title: "Меню — NFCMENU",

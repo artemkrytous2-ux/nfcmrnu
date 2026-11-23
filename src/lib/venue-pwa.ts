@@ -1,3 +1,4 @@
+import { cacheLife } from "next/cache";
 import { connection } from "next/server";
 import { isMissingPwaColumn, pwaNameFromValue } from "@/lib/pwa-settings";
 
@@ -20,21 +21,62 @@ type BusinessPwaRow = {
 export async function loadVenuePwa(slug: string): Promise<VenuePwa | null> {
   try {
     await connection();
-    if (!slugPattern.test(slug)) return null;
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-    const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
-    if (!url || !key) return null;
-
-    const withIcon = await readBusiness(url, key, slug, "id,name,pwa_name,pwa_icon_path");
-    if (withIcon.ok) return venueFromRow(slug, withIcon.row);
-    if (!withIcon.missingColumn) return null;
-
-    const nameOnly = await readBusiness(url, key, slug, "id,name");
-    if (!nameOnly.ok) return null;
-    return venueFromRow(slug, nameOnly.row);
+    return await readVenue(slug, "live");
   } catch {
     return null;
   }
+}
+
+export async function loadVenuePwaMetadata(slug: string): Promise<VenuePwa | null> {
+  "use cache";
+  cacheLife("minutes");
+  return readVenue(slug, "metadata");
+}
+
+export async function listPublishedVenueSlugs(): Promise<string[]> {
+  "use cache";
+  cacheLife("minutes");
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
+  if (!url || !key) return [];
+
+  const endpoint = new URL("/rest/v1/businesses", url);
+  endpoint.searchParams.set("select", "slug");
+  endpoint.searchParams.set("is_published", "eq.true");
+  endpoint.searchParams.set("order", "slug.asc");
+  endpoint.searchParams.set("limit", "500");
+
+  try {
+    const response = await fetch(endpoint, {
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        Accept: "application/json",
+      },
+    });
+    const payload = (await response.json().catch(() => null)) as { slug?: unknown }[] | null;
+    if (!response.ok || !Array.isArray(payload)) return [];
+    return payload
+      .map((row) => (typeof row.slug === "string" ? row.slug : ""))
+      .filter((slug) => slugPattern.test(slug));
+  } catch {
+    return [];
+  }
+}
+
+async function readVenue(slug: string, mode: "live" | "metadata"): Promise<VenuePwa | null> {
+  if (!slugPattern.test(slug)) return null;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
+  if (!url || !key) return null;
+
+  const withIcon = await readBusiness(url, key, slug, "id,name,pwa_name,pwa_icon_path", mode);
+  if (withIcon.ok) return venueFromRow(slug, withIcon.row);
+  if (!withIcon.missingColumn) return null;
+
+  const nameOnly = await readBusiness(url, key, slug, "id,name", mode);
+  if (!nameOnly.ok) return null;
+  return venueFromRow(slug, nameOnly.row);
 }
 
 export function venueManifest(venue: VenuePwa) {
@@ -94,7 +136,13 @@ function ownedIconPath(businessId: string, value: unknown) {
   return filePattern.test(path.slice(prefix.length)) ? path : null;
 }
 
-async function readBusiness(url: string, key: string, slug: string, select: string) {
+async function readBusiness(
+  url: string,
+  key: string,
+  slug: string,
+  select: string,
+  mode: "live" | "metadata",
+) {
   const endpoint = new URL("/rest/v1/businesses", url);
   endpoint.searchParams.set("select", select);
   endpoint.searchParams.set("slug", `eq.${slug}`);
@@ -107,7 +155,7 @@ async function readBusiness(url: string, key: string, slug: string, select: stri
       Authorization: `Bearer ${key}`,
       Accept: "application/json",
     },
-    cache: "no-store",
+    ...(mode === "live" ? { cache: "no-store" as const } : {}),
   });
   const payload = (await response.json().catch(() => null)) as BusinessPwaRow[] | { code?: string; message?: string } | null;
   if (!response.ok) {

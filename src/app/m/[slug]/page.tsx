@@ -5,6 +5,11 @@ import { listPublishedVenueSlugs, loadVenuePwaMetadata } from "@/lib/venue-pwa";
 
 export async function generateStaticParams() {
   const slugs = await listPublishedVenueSlugs();
+
+  if (!slugs || slugs.length === 0) {
+    return [{ slug: "_" }];
+  }
+
   return slugs.map((slug) => ({ slug }));
 }
 

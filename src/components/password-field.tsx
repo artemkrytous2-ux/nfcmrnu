@@ -29,6 +29,7 @@ export function PasswordField({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           className={`${authFieldClass} pr-24`}
+          style={{ fontSize: "16px" }}
         />
         <button
           type="button"

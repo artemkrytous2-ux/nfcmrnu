@@ -142,7 +142,7 @@ export function OwnerGate() {
 
   if (phase === "signedOut") {
     return (
-      <div className="min-h-dvh w-full overflow-y-auto">
+      <div className="min-h-dvh w-full">
         <div className="flex min-h-dvh w-full items-center justify-center px-4 py-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1.25rem,env(safe-area-inset-bottom))]">
           <section className="w-full max-w-md rounded-3xl border border-line bg-card px-5 py-6 sm:px-8 sm:py-8">
             <Link href="/" className="text-[15px] font-extrabold tracking-[0.04em] text-accent uppercase">
@@ -161,6 +161,7 @@ export function OwnerGate() {
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   className={authFieldClass}
+                  style={{ fontSize: "16px" }}
                 />
               </label>
               <PasswordField

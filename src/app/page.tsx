@@ -129,10 +129,16 @@ export default function Home() {
           <p className="mt-4 max-w-2xl text-[15px] leading-6 text-muted">
             Меню, услуги, цены и фотографии на одной странице. Клиенты оформляют заказы и заявки, а вы сами управляете содержимым сайта через личный кабинет.
           </p>
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <Link
+              href="/try"
+              className="home-cta inline-flex h-12 items-center justify-center rounded-full px-6 text-sm font-medium"
+            >
+              Попробовать бесплатно
+            </Link>
             <a
               href="#examples"
-              className="home-cta inline-flex h-12 items-center justify-center rounded-full px-6 text-sm font-medium"
+              className="inline-flex h-12 items-center justify-center rounded-full border border-line px-6 text-sm text-foreground transition-colors hover:border-accent"
             >
               Посмотреть примеры
             </a>

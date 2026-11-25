@@ -137,12 +137,6 @@ export default function Home() {
               Попробовать бесплатно
             </Link>
             <a
-              href="#examples"
-              className="inline-flex h-12 items-center justify-center rounded-full border border-line px-6 text-sm text-foreground transition-colors hover:border-accent"
-            >
-              Посмотреть примеры
-            </a>
-            <a
               href="#tariffs"
               className="inline-flex h-12 items-center justify-center rounded-full border border-line px-6 text-sm text-foreground transition-colors hover:border-accent"
             >

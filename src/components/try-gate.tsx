@@ -306,6 +306,13 @@ export function TryGate() {
                   {formNotice}
                 </p>
               ) : null}
+              {mode === "register" ? (
+                <p className="rounded-2xl border border-accent/40 bg-accent/10 px-3 py-3 text-[13px] leading-5 text-foreground">
+                  После регистрации на вашу почту придёт письмо от Supabase для подтверждения email. Откройте
+                  письмо и перейдите по ссылке, чтобы активировать аккаунт и начать пользоваться бесплатной
+                  демоверсией NFCMENU.
+                </p>
+              ) : null}
               <button type="submit" disabled={pending} className={authPrimaryButton}>
                 {pending
                   ? mode === "register"

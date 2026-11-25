@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, Eye, EyeOff, MoreHorizontal, Plus, Trash2 } from "lucide-react";
 import { DishPhoto } from "@/components/dish-photo";
-import { formatPrice, readImageFile, type Dish, type Venue } from "@/lib/menu";
+import { formatPrice, readImageFile, SUB_DESCRIPTION_MAX, type Dish, type Venue } from "@/lib/menu";
 import { formatPhone } from "@/lib/order";
 import { menuPhotoUrl } from "@/lib/photos";
 import { useSuperadminMenu } from "@/lib/use-superadmin-menu";
@@ -25,24 +25,30 @@ type Draft = {
 const emptySettings: OwnerSettings = {
   name: "",
   description: "",
+  subDescription: "",
   address: "",
   phone: "",
   hours: "",
   orderPhone: "",
   telegram: true,
   max: true,
+  orderEnabled: true,
+  callButtonEnabled: false,
 };
 
 function settingsFromVenue(venue: Venue): OwnerSettings {
   return {
     name: venue.name,
     description: venue.description,
+    subDescription: venue.subDescription.slice(0, SUB_DESCRIPTION_MAX),
     address: venue.address,
     phone: venue.phone,
     hours: venue.hours,
     orderPhone: venue.orderPhone,
     telegram: venue.channels.telegram,
     max: venue.channels.max,
+    orderEnabled: venue.orderEnabled,
+    callButtonEnabled: venue.callButtonEnabled,
   };
 }
 
@@ -573,6 +579,20 @@ function MenuEditor({
       window.open(`${window.location.origin}/m/${site.slug}`, "_blank", "noopener,noreferrer");
     };
 
+    const copySiteLink = async () => {
+      if (!site?.slug || !site.published) {
+        setSiteNote(siteMessage(site));
+        return;
+      }
+      const url = `${window.location.origin}/m/${site.slug}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        setSiteNote("Ссылка скопирована");
+      } catch {
+        setSiteNote("Не удалось скопировать ссылку. Скопируйте её вручную.");
+      }
+    };
+
     return (
       <div className="mx-auto w-full max-w-[1100px] overflow-x-hidden px-4 py-5 sm:px-6 sm:py-8">
         {dishMenuId ? (
@@ -606,13 +626,22 @@ function MenuEditor({
         <h1 className="mt-7 text-[28px] leading-[1.05] font-extrabold tracking-[-0.03em]">{copy.pageTitle}</h1>
         <p className="mt-2 text-[15px] leading-6 text-muted">{copy.pageSubtitle}</p>
         <div className="mt-4">
-          <button
-            type="button"
-            onClick={openSite}
-            className="inline-flex h-11 items-center rounded-full border border-accent/50 px-4 text-sm text-accent"
-          >
-            Посмотреть сайт
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={openSite}
+              className="inline-flex h-11 items-center rounded-full border border-accent/50 px-4 text-sm text-accent"
+            >
+              Посмотреть сайт
+            </button>
+            <button
+              type="button"
+              onClick={() => void copySiteLink()}
+              className="inline-flex h-11 items-center rounded-full border border-line px-4 text-sm text-foreground"
+            >
+              Скопировать ссылку
+            </button>
+          </div>
           {siteNote ? (
             <p className="mt-2 text-sm text-accent" role="status">
               {siteNote}
@@ -976,6 +1005,32 @@ function MenuEditor({
                       className="min-h-28 w-full resize-y rounded-2xl border border-line bg-background px-4 py-3 text-sm text-foreground outline-none placeholder:text-muted/70 focus:border-accent/60"
                     />
                   </Field>
+                  <div className="rounded-2xl border border-line bg-background/60 p-4">
+                    <p className="text-xs font-medium tracking-[0.16em] text-accent uppercase">
+                      Дополнительные настройки
+                    </p>
+                    <div className="mt-3 grid gap-2">
+                      <label className="text-sm" htmlFor="owner-sub-description">
+                        Подописание
+                      </label>
+                      <textarea
+                        id="owner-sub-description"
+                        value={settings.subDescription}
+                        maxLength={SUB_DESCRIPTION_MAX}
+                        onChange={(event) =>
+                          setSettings((current) => ({
+                            ...current,
+                            subDescription: event.target.value.slice(0, SUB_DESCRIPTION_MAX),
+                          }))
+                        }
+                        className="min-h-24 w-full resize-y rounded-2xl border border-line bg-background px-4 py-3 text-sm text-foreground outline-none placeholder:text-muted/70 focus:border-accent/60"
+                        placeholder="Короткий текст под основным описанием"
+                      />
+                      <p className="text-xs text-muted">
+                        {settings.subDescription.length} / {SUB_DESCRIPTION_MAX}
+                      </p>
+                    </div>
+                  </div>
                   <Field label="Адрес">
                     <input
                       value={settings.address}
@@ -1040,6 +1095,28 @@ function MenuEditor({
                       className="size-4 accent-[#3dbe7a]"
                     />
                     {copy.maxOrders}
+                  </label>
+                  <label className="flex items-center gap-3 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={settings.orderEnabled}
+                      onChange={(event) =>
+                        setSettings((current) => ({ ...current, orderEnabled: event.target.checked }))
+                      }
+                      className="size-4 accent-[#3dbe7a]"
+                    />
+                    {copy.acceptMessengerOrders}
+                  </label>
+                  <label className="flex items-center gap-3 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={settings.callButtonEnabled}
+                      onChange={(event) =>
+                        setSettings((current) => ({ ...current, callButtonEnabled: event.target.checked }))
+                      }
+                      className="size-4 accent-[#3dbe7a]"
+                    />
+                    {copy.showCallButton}
                   </label>
                   {settingsError ? <p className="text-sm text-[#e2b2a2]">{settingsError}</p> : null}
                   {settingsMessage ? <p className="text-sm text-accent">{settingsMessage}</p> : null}
@@ -1354,6 +1431,28 @@ function MenuEditor({
                 className="size-4 accent-[#3dbe7a]"
               />
               Принимать заказы в MAX
+            </label>
+            <label className="flex items-center gap-3 text-sm">
+              <input
+                type="checkbox"
+                checked={settings.orderEnabled}
+                onChange={(event) =>
+                  setSettings((current) => ({ ...current, orderEnabled: event.target.checked }))
+                }
+                className="size-4 accent-[#3dbe7a]"
+              />
+              {copy.acceptMessengerOrders}
+            </label>
+            <label className="flex items-center gap-3 text-sm">
+              <input
+                type="checkbox"
+                checked={settings.callButtonEnabled}
+                onChange={(event) =>
+                  setSettings((current) => ({ ...current, callButtonEnabled: event.target.checked }))
+                }
+                className="size-4 accent-[#3dbe7a]"
+              />
+              {copy.showCallButton}
             </label>
             {settingsError ? <p className="text-sm text-[#e2b2a2]">{settingsError}</p> : null}
             {settingsMessage ? <p className="text-sm text-accent">{settingsMessage}</p> : null}

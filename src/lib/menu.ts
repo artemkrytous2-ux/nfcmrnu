@@ -6,13 +6,18 @@ export type OrderChannels = {
 export type Venue = {
   name: string;
   description: string;
+  subDescription: string;
   address: string;
   phone: string;
   hours: string;
   orderPhone: string;
   banner: string;
   channels: OrderChannels;
+  orderEnabled: boolean;
+  callButtonEnabled: boolean;
 };
+
+export const SUB_DESCRIPTION_MAX = 150;
 
 export type Category = {
   id: string;
@@ -46,12 +51,15 @@ export const seedMenu: MenuState = {
     name: "Шаурма №1",
     description:
       "Сочная шаурма, свежие овощи и соусы, которые готовят при вас. Меню открывается на телефоне — без бумажной карточки.",
+    subDescription: "",
     address: "Владивосток, ул. Светланская, 12",
     phone: "+7 914 000-00-01",
     hours: "Ежедневно 10:00–23:00",
     orderPhone: "+7 981 881-04-30",
     banner: "",
     channels: { telegram: true, max: true },
+    orderEnabled: true,
+    callButtonEnabled: false,
   },
   categories: [
     { id: "shawarma", name: "Шаурма" },
@@ -176,6 +184,8 @@ function normalize(raw: unknown): MenuState | null {
     name: typeof venueRaw.name === "string" && venueRaw.name.trim() ? venueRaw.name : seedMenu.venue.name,
     description:
       typeof venueRaw.description === "string" ? venueRaw.description : seedMenu.venue.description,
+    subDescription:
+      typeof venueRaw.subDescription === "string" ? venueRaw.subDescription.slice(0, SUB_DESCRIPTION_MAX) : "",
     address: typeof venueRaw.address === "string" ? venueRaw.address : seedMenu.venue.address,
     phone: typeof venueRaw.phone === "string" ? venueRaw.phone : seedMenu.venue.phone,
     hours: typeof venueRaw.hours === "string" ? venueRaw.hours : seedMenu.venue.hours,
@@ -185,6 +195,8 @@ function normalize(raw: unknown): MenuState | null {
       telegram: channelsRaw.telegram !== false,
       max: channelsRaw.max !== false,
     },
+    orderEnabled: venueRaw.orderEnabled !== false,
+    callButtonEnabled: venueRaw.callButtonEnabled === true,
   };
 
   return { venue, categories, dishes };

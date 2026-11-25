@@ -31,12 +31,14 @@ export function OrderCart({
   quantities,
   onQuantity,
   onClear,
+  callHref = "",
 }: {
   dishes: Dish[];
   venue: Venue;
   quantities: Record<string, number>;
   onQuantity: (id: string, quantity: number) => void;
   onClear: () => void;
+  callHref?: string;
 }) {
   const [pickup, setPickup] = useState<Pickup>("now");
   const [pickupTime, setPickupTime] = useState("");
@@ -237,6 +239,14 @@ export function OrderCart({
         >
           Отправить заказ
         </button>
+        {callHref ? (
+          <a
+            href={callHref}
+            className="mt-3 flex h-14 w-full items-center justify-center rounded-full border border-line bg-card text-[17px] font-semibold text-foreground"
+          >
+            Позвонить
+          </a>
+        ) : null}
 
         {message ? (
           <div className="mt-5 rounded-2xl border border-line bg-background p-4">

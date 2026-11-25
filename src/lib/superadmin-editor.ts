@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { businessKind, isMissingKindColumn } from "@/lib/business-kind";
+import { SUB_DESCRIPTION_MAX } from "@/lib/menu";
 import { isMissingThemeColumn, menuTheme, menuThemes, type MenuTheme } from "@/lib/menu-theme";
 import { formatPhone, phoneDigits } from "@/lib/order";
 import { isMissingPwaColumn, pwaNameFromValue, reportPwaIconError, storedPwaName } from "@/lib/pwa-settings";
@@ -79,15 +80,20 @@ export async function saveSuperadminSettings(
     .update({
       name: checked.values.name,
       description: checked.values.description,
+      sub_description: checked.values.subDescription,
       address: checked.values.address,
       phone: checked.values.phone,
       hours: checked.values.hours,
       order_phone: checked.values.orderPhone,
       telegram_enabled: checked.values.telegram,
       max_enabled: checked.values.max,
+      order_enabled: checked.values.orderEnabled,
+      call_button_enabled: checked.values.callButtonEnabled,
     })
     .eq("id", businessId)
-    .select("id, name, description, address, phone, hours, order_phone, banner_path, telegram_enabled, max_enabled")
+    .select(
+      "id, name, description, sub_description, address, phone, hours, order_phone, banner_path, telegram_enabled, max_enabled, order_enabled, call_button_enabled",
+    )
     .maybeSingle();
   if (error || data?.id !== businessId) {
     return fail("Не удалось сохранить настройки. Проверьте поля и попробуйте снова.");
@@ -485,15 +491,20 @@ async function businessExists(supabase: SupabaseClient, businessId: string) {
   return !error && data?.id === businessId;
 }
 
-const businessColumns =
+const businessColumnsBase =
   "id, name, description, address, phone, hours, order_phone, banner_path, telegram_enabled, max_enabled, slug, status, is_published, is_blocked, is_archived";
 
 async function readBusiness(supabase: SupabaseClient, businessId: string) {
   let includeTheme = true;
   let includeKind = true;
   let includePwa = true;
+  let includeOrderCall = true;
+  let includeSubDescription = true;
 
-  for (let attempt = 0; attempt < 4; attempt += 1) {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const orderCall = includeOrderCall ? ", order_enabled, call_button_enabled" : "";
+    const subDescription = includeSubDescription ? ", sub_description" : "";
+    const columns = `${businessColumnsBase}${orderCall}${subDescription}`;
     const extra = [
       includeTheme ? "theme" : "",
       includeKind ? "kind" : "",
@@ -501,7 +512,7 @@ async function readBusiness(supabase: SupabaseClient, businessId: string) {
     ].filter(Boolean);
     const result = await supabase
       .from("businesses")
-      .select(extra.length > 0 ? `${businessColumns}, ${extra.join(", ")}` : businessColumns)
+      .select(extra.length > 0 ? `${columns}, ${extra.join(", ")}` : columns)
       .eq("id", businessId)
       .maybeSingle();
     if (!result.error) {
@@ -517,6 +528,14 @@ async function readBusiness(supabase: SupabaseClient, businessId: string) {
         pwaIcon: includePwa && isPhotoPath(icon, businessId, "pwa-icon") ? icon : "",
         pwaStorage: includePwa ? ("ready" as const) : ("missing" as const),
       };
+    }
+    if (includeSubDescription && isMissingSubDescriptionColumn(result.error)) {
+      includeSubDescription = false;
+      continue;
+    }
+    if (includeOrderCall && isMissingOrderCallColumn(result.error)) {
+      includeOrderCall = false;
+      continue;
     }
     if (includeTheme && isMissingThemeColumn(result.error) && result.error.message?.toLowerCase().includes("theme")) {
       includeTheme = false;
@@ -586,6 +605,9 @@ type BusinessRow = {
   banner_path: string | null;
   telegram_enabled: boolean;
   max_enabled: boolean;
+  order_enabled?: boolean;
+  call_button_enabled?: boolean;
+  sub_description?: string | null;
   slug: string;
   status: string;
   is_published: boolean;
@@ -600,6 +622,7 @@ type BusinessRow = {
 function venueFromRow(row: {
   name: string;
   description: string | null;
+  sub_description?: string | null;
   address: string | null;
   phone: string | null;
   hours: string | null;
@@ -607,10 +630,14 @@ function venueFromRow(row: {
   banner_path: string | null;
   telegram_enabled: boolean;
   max_enabled: boolean;
+  order_enabled?: boolean;
+  call_button_enabled?: boolean;
 }) {
   return {
     name: row.name.trim(),
     description: row.description ?? "",
+    subDescription:
+      typeof row.sub_description === "string" ? row.sub_description.slice(0, SUB_DESCRIPTION_MAX) : "",
     address: row.address ?? "",
     phone: row.phone ?? "",
     hours: row.hours ?? "",
@@ -618,7 +645,33 @@ function venueFromRow(row: {
     banner: row.banner_path ?? "",
     telegram: row.telegram_enabled,
     max: row.max_enabled,
+    orderEnabled: row.order_enabled !== false,
+    callButtonEnabled: row.call_button_enabled === true,
   };
+}
+
+function isMissingOrderCallColumn(error: { code?: string; message?: string } | null | undefined) {
+  if (!error) return false;
+  const message = error.message?.toLowerCase() ?? "";
+  if (!message.includes("order_enabled") && !message.includes("call_button_enabled")) return false;
+  return (
+    error.code === "42703" ||
+    error.code === "PGRST204" ||
+    message.includes("does not exist") ||
+    message.includes("schema cache")
+  );
+}
+
+function isMissingSubDescriptionColumn(error: { code?: string; message?: string } | null | undefined) {
+  if (!error) return false;
+  const message = error.message?.toLowerCase() ?? "";
+  if (!message.includes("sub_description")) return false;
+  return (
+    error.code === "42703" ||
+    error.code === "PGRST204" ||
+    message.includes("does not exist") ||
+    message.includes("schema cache")
+  );
 }
 
 function dishFromRow(row: {
@@ -644,6 +697,8 @@ function dishFromRow(row: {
 function validateSettings(input: Record<string, unknown>): Failure | Success<{ values: Settings }> {
   const name = typeof input.name === "string" ? input.name.trim() : "";
   const description = typeof input.description === "string" ? input.description.trim() : "";
+  const subDescription =
+    typeof input.subDescription === "string" ? input.subDescription.slice(0, SUB_DESCRIPTION_MAX) : "";
   const address = typeof input.address === "string" ? input.address.trim() : "";
   const hours = typeof input.hours === "string" ? input.hours.trim() : "";
   const phone = optionalPhone(typeof input.phone === "string" ? input.phone : "");
@@ -652,6 +707,9 @@ function validateSettings(input: Record<string, unknown>): Failure | Success<{ v
   if (orderPhoneError) return { ok: false, message: orderPhoneError };
   if (name.length < 1 || name.length > 120) return fail("Введите название заведения, не длиннее 120 символов.");
   if (description.length > 2000) return fail("Описание слишком длинное.");
+  if (subDescription.length > SUB_DESCRIPTION_MAX) {
+    return fail(`Подописание не длиннее ${SUB_DESCRIPTION_MAX} символов.`);
+  }
   if (address.length > 300) return fail("Адрес слишком длинный.");
   if (hours.length > 120) return fail("Часы работы слишком длинные.");
   if (!phone.ok) return fail("Введите телефон заведения полностью.");
@@ -660,12 +718,15 @@ function validateSettings(input: Record<string, unknown>): Failure | Success<{ v
     values: {
       name,
       description,
+      subDescription,
       address,
       phone: phone.value,
       hours,
       orderPhone: formatPhone(orderPhone.trim()),
       telegram: input.telegram === true,
       max: input.max === true,
+      orderEnabled: input.orderEnabled !== false,
+      callButtonEnabled: input.callButtonEnabled === true,
     },
   };
 }
@@ -717,10 +778,13 @@ function fail(message: string): Failure {
 type Settings = {
   name: string;
   description: string;
+  subDescription: string;
   address: string;
   phone: string;
   hours: string;
   orderPhone: string;
   telegram: boolean;
   max: boolean;
+  orderEnabled: boolean;
+  callButtonEnabled: boolean;
 };

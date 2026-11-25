@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { DishPhoto } from "@/components/dish-photo";
 import { AddDishButton, OrderCart } from "@/components/order-cart";
 import { formatPrice, type MenuState } from "@/lib/menu";
+import { venuePhoneHref } from "@/lib/order";
 import { menuPhotoUrl } from "@/lib/photos";
 import { useCart } from "@/lib/use-cart";
 
@@ -39,9 +40,13 @@ export function MenuBoard({
   }, [categories, categoryId]);
 
   const dishes = visibleDishes.filter((dish) => dish.categoryId === categoryId);
+  const ordersEnabled = menu?.venue.orderEnabled !== false;
+  const callHref =
+    menu?.venue.callButtonEnabled === true ? venuePhoneHref(menu.venue.phone) : "";
+  const showCall = Boolean(callHref);
 
   return (
-    <div className="mx-auto w-full max-w-[440px] px-4 pt-5 pb-28">
+    <div className={`mx-auto w-full max-w-[440px] px-4 pt-5 ${ordersEnabled ? "pb-28" : "pb-10"}`}>
       {ready && menu ? (
         <>
           <header className="flex items-start justify-between gap-4">
@@ -76,9 +81,16 @@ export function MenuBoard({
               {menu.venue.description.trim()}
             </h1>
           ) : null}
-          <p className="mt-4 text-[15px] leading-6 text-muted">
-            Собери заказ здесь — кассир получит его в Telegram или MAX.
-          </p>
+          {menu.venue.subDescription.trim() ? (
+            <p className="mt-3 whitespace-pre-wrap break-words text-[15px] leading-6 text-muted">
+              {menu.venue.subDescription.trimEnd()}
+            </p>
+          ) : null}
+          {ordersEnabled ? (
+            <p className="mt-4 text-[15px] leading-6 text-muted">
+              Собери заказ здесь — кассир получит его в Telegram или MAX.
+            </p>
+          ) : null}
         </>
       ) : (
         <div className="space-y-3">
@@ -133,12 +145,14 @@ export function MenuBoard({
                   ) : null}
                   <div className="mt-auto flex items-center justify-between gap-2 pt-3">
                     <p className="text-[15px] font-semibold">{formatPrice(dish.price)}</p>
-                    <AddDishButton
-                      quantity={cart.quantities[dish.id] ?? 0}
-                      onAdd={() => cart.add(dish.id)}
-                      onChange={(quantity) => cart.setQuantity(dish.id, quantity)}
-                      appearance="plus"
-                    />
+                    {ordersEnabled ? (
+                      <AddDishButton
+                        quantity={cart.quantities[dish.id] ?? 0}
+                        onAdd={() => cart.add(dish.id)}
+                        onChange={(quantity) => cart.setQuantity(dish.id, quantity)}
+                        appearance="plus"
+                      />
+                    ) : null}
                   </div>
                 </div>
               </li>
@@ -147,14 +161,26 @@ export function MenuBoard({
         )}
       </section>
 
-      {ready && menu ? (
+      {ready && menu && ordersEnabled ? (
         <OrderCart
           dishes={menu.dishes}
           venue={menu.venue}
           quantities={cart.quantities}
           onQuantity={cart.setQuantity}
           onClear={cart.clear}
+          callHref={showCall ? callHref : ""}
         />
+      ) : null}
+
+      {ready && menu && !ordersEnabled && showCall ? (
+        <div className="mt-10">
+          <a
+            href={callHref}
+            className="menu-on-accent flex h-14 w-full items-center justify-center rounded-full bg-accent text-[17px] font-semibold"
+          >
+            Позвонить
+          </a>
+        </div>
       ) : null}
     </div>
   );

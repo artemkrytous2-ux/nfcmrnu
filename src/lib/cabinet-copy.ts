@@ -39,6 +39,8 @@ export type CabinetCopy = {
   cashierPhoneRequired: string;
   telegramOrders: string;
   maxOrders: string;
+  acceptMessengerOrders: string;
+  showCallButton: string;
   nameRequired: string;
   priceRequired: string;
   priceNegative: string;
@@ -109,6 +111,8 @@ const food: CabinetCopy = {
   cashierPhoneRequired: "Введите номер телефона кассира",
   telegramOrders: "Принимать заказы в Telegram",
   maxOrders: "Принимать заказы в MAX",
+  acceptMessengerOrders: "Принимать заказы через мессенджеры",
+  showCallButton: "Показывать кнопку «Позвонить»",
   nameRequired: "Введите название блюда",
   priceRequired: "Введите цену",
   priceNegative: "Цена не может быть отрицательной.",
@@ -180,6 +184,8 @@ const beauty: CabinetCopy = {
   cashierPhoneRequired: "Введите номер телефона для сообщений",
   telegramOrders: "Принимать сообщения в Telegram",
   maxOrders: "Принимать сообщения в MAX",
+  acceptMessengerOrders: "Принимать заказы через мессенджеры",
+  showCallButton: "Показывать кнопку «Позвонить»",
   nameRequired: "Введите название услуги",
   priceRequired: "Введите стоимость",
   priceNegative: "Стоимость не может быть отрицательной.",

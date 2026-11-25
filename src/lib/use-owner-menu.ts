@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { readImageBlob, type Dish, type MenuState, type Venue } from "@/lib/menu";
+import { readImageBlob, SUB_DESCRIPTION_MAX, type Dish, type MenuState, type Venue } from "@/lib/menu";
 import { businessKind, isMissingKindColumn, type BusinessKind } from "@/lib/business-kind";
 import { cabinetCopy } from "@/lib/cabinet-copy";
 import { isMissingThemeColumn, menuTheme, menuThemes, type MenuTheme } from "@/lib/menu-theme";
@@ -14,18 +14,22 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export type OwnerSettings = {
   name: string;
   description: string;
+  subDescription: string;
   address: string;
   phone: string;
   hours: string;
   orderPhone: string;
   telegram: boolean;
   max: boolean;
+  orderEnabled: boolean;
+  callButtonEnabled: boolean;
 };
 
 type BusinessRow = {
   id: string;
   name: string;
   description: string;
+  sub_description?: string | null;
   address: string;
   phone: string;
   hours: string;
@@ -33,6 +37,8 @@ type BusinessRow = {
   banner_path: string;
   telegram_enabled: boolean;
   max_enabled: boolean;
+  order_enabled?: boolean;
+  call_button_enabled?: boolean;
   slug: string;
   status: string;
   is_published: boolean;
@@ -215,16 +221,21 @@ export function useOwnerMenu(businessId: string) {
       .update({
         name: checked.values.name,
         description: checked.values.description,
+        sub_description: checked.values.subDescription,
         address: checked.values.address,
         phone: checked.values.phone,
         hours: checked.values.hours,
         order_phone: checked.values.orderPhone,
         telegram_enabled: checked.values.telegram,
         max_enabled: checked.values.max,
+        order_enabled: checked.values.orderEnabled,
+        call_button_enabled: checked.values.callButtonEnabled,
       })
       .eq("id", businessId)
       .eq("owner_id", userData.user.id)
-      .select("id, name, description, address, phone, hours, order_phone, telegram_enabled, max_enabled")
+      .select(
+        "id, name, description, sub_description, address, phone, hours, order_phone, telegram_enabled, max_enabled, order_enabled, call_button_enabled",
+      )
       .maybeSingle();
 
     const saved = data as BusinessRow | null;
@@ -917,16 +928,21 @@ export function useOwnerMenu(businessId: string) {
   };
 }
 
-const ownerBusinessColumns =
+const ownerBusinessColumnsBase =
   "id, name, description, address, phone, hours, order_phone, banner_path, telegram_enabled, max_enabled, slug, status, is_published, is_blocked, is_archived";
 
 async function loadOwnedBusiness(supabase: SupabaseClient, businessId: string, userId: string) {
   let includeTheme = true;
   let includeKind = true;
   let includePwa = true;
+  let includeOrderCall = true;
+  let includeSubDescription = true;
   let lastError: { code?: string; message?: string } | null = null;
 
-  for (let attempt = 0; attempt < 4; attempt += 1) {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const orderCall = includeOrderCall ? ", order_enabled, call_button_enabled" : "";
+    const subDescription = includeSubDescription ? ", sub_description" : "";
+    const columns = `${ownerBusinessColumnsBase}${orderCall}${subDescription}`;
     const extra = [
       includeTheme ? "theme" : "",
       includeKind ? "kind" : "",
@@ -934,7 +950,7 @@ async function loadOwnedBusiness(supabase: SupabaseClient, businessId: string, u
     ].filter(Boolean);
     const result = await supabase
       .from("businesses")
-      .select(extra.length > 0 ? `${ownerBusinessColumns}, ${extra.join(", ")}` : ownerBusinessColumns)
+      .select(extra.length > 0 ? `${columns}, ${extra.join(", ")}` : columns)
       .eq("id", businessId)
       .eq("owner_id", userId)
       .maybeSingle();
@@ -954,6 +970,14 @@ async function loadOwnedBusiness(supabase: SupabaseClient, businessId: string, u
     }
 
     lastError = result.error;
+    if (includeSubDescription && isMissingSubDescriptionColumn(result.error)) {
+      includeSubDescription = false;
+      continue;
+    }
+    if (includeOrderCall && isMissingOrderCallColumn(result.error)) {
+      includeOrderCall = false;
+      continue;
+    }
     if (includeTheme && isMissingThemeColumn(result.error) && result.error.message?.toLowerCase().includes("theme")) {
       includeTheme = false;
       continue;
@@ -1071,6 +1095,7 @@ function venueFromRow(venue: BusinessRow, banner: string): Venue {
   return {
     name: venue.name.trim(),
     description: venue.description ?? "",
+    subDescription: storedSubDescription(venue.sub_description),
     address: venue.address ?? "",
     phone: venue.phone ?? "",
     hours: venue.hours ?? "",
@@ -1080,12 +1105,44 @@ function venueFromRow(venue: BusinessRow, banner: string): Venue {
       telegram: venue.telegram_enabled,
       max: venue.max_enabled,
     },
+    orderEnabled: venue.order_enabled !== false,
+    callButtonEnabled: venue.call_button_enabled === true,
   };
+}
+
+function storedSubDescription(value: unknown) {
+  if (typeof value !== "string") return "";
+  return value.slice(0, SUB_DESCRIPTION_MAX);
+}
+
+function isMissingOrderCallColumn(error: { code?: string; message?: string } | null | undefined) {
+  if (!error) return false;
+  const message = error.message?.toLowerCase() ?? "";
+  if (!message.includes("order_enabled") && !message.includes("call_button_enabled")) return false;
+  return (
+    error.code === "42703" ||
+    error.code === "PGRST204" ||
+    message.includes("does not exist") ||
+    message.includes("schema cache")
+  );
+}
+
+function isMissingSubDescriptionColumn(error: { code?: string; message?: string } | null | undefined) {
+  if (!error) return false;
+  const message = error.message?.toLowerCase() ?? "";
+  if (!message.includes("sub_description")) return false;
+  return (
+    error.code === "42703" ||
+    error.code === "PGRST204" ||
+    message.includes("does not exist") ||
+    message.includes("schema cache")
+  );
 }
 
 function validateSettings(settings: OwnerSettings, copy: ReturnType<typeof cabinetCopy>) {
   const name = settings.name.trim();
   const description = settings.description.trim();
+  const subDescription = settings.subDescription.slice(0, SUB_DESCRIPTION_MAX);
   const address = settings.address.trim();
   const hours = settings.hours.trim();
   const phone = optionalPhone(settings.phone);
@@ -1100,6 +1157,9 @@ function validateSettings(settings: OwnerSettings, copy: ReturnType<typeof cabin
   if (description.length > 2000) {
     return { ok: false as const, message: "Описание слишком длинное." };
   }
+  if (subDescription.length > SUB_DESCRIPTION_MAX) {
+    return { ok: false as const, message: `Подописание не длиннее ${SUB_DESCRIPTION_MAX} символов.` };
+  }
   if (address.length > 300) {
     return { ok: false as const, message: "Адрес слишком длинный." };
   }
@@ -1113,12 +1173,15 @@ function validateSettings(settings: OwnerSettings, copy: ReturnType<typeof cabin
     values: {
       name,
       description,
+      subDescription,
       address,
       phone: phone.value,
       hours,
       orderPhone: formatPhone(settings.orderPhone.trim()),
       telegram: settings.telegram,
       max: settings.max,
+      orderEnabled: settings.orderEnabled,
+      callButtonEnabled: settings.callButtonEnabled,
     },
   };
 }

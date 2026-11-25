@@ -14,6 +14,7 @@ import { cashierPhoneError } from "@/lib/use-owner-menu";
 type VenuePayload = {
   name: string;
   description: string;
+  subDescription?: string;
   address: string;
   phone: string;
   hours: string;
@@ -21,6 +22,8 @@ type VenuePayload = {
   banner: string;
   telegram: boolean;
   max: boolean;
+  orderEnabled?: boolean;
+  callButtonEnabled?: boolean;
 };
 
 export function useSuperadminMenu(businessId: string) {
@@ -387,12 +390,15 @@ function venueState(venue: VenuePayload, banner: string): MenuState["venue"] {
   return {
     name: venue.name,
     description: venue.description,
+    subDescription: typeof venue.subDescription === "string" ? venue.subDescription.slice(0, 150) : "",
     address: venue.address,
     phone: venue.phone,
     hours: venue.hours,
     orderPhone: venue.orderPhone,
     banner,
     channels: { telegram: venue.telegram, max: venue.max },
+    orderEnabled: venue.orderEnabled !== false,
+    callButtonEnabled: venue.callButtonEnabled === true,
   };
 }
 

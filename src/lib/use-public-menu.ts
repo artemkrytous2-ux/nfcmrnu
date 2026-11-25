@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { businessKind, isMissingKindColumn, type BusinessKind } from "@/lib/business-kind";
-import type { MenuState } from "@/lib/menu";
+import { SUB_DESCRIPTION_MAX, type MenuState } from "@/lib/menu";
 import { isMissingThemeColumn, menuTheme, type MenuTheme } from "@/lib/menu-theme";
 import { getPublicSupabase } from "@/lib/supabase";
 
@@ -10,6 +10,7 @@ type BusinessRow = {
   id: string;
   name: string;
   description: string;
+  sub_description?: unknown;
   address?: string;
   phone: string;
   hours?: string;
@@ -17,6 +18,8 @@ type BusinessRow = {
   banner_path: string;
   telegram_enabled: boolean;
   max_enabled: boolean;
+  order_enabled?: unknown;
+  call_button_enabled?: unknown;
   theme?: unknown;
   kind?: unknown;
   pwa_prompt_enabled?: unknown;
@@ -126,6 +129,10 @@ export function usePublicMenu(slug: string) {
         venue: {
           name: venue.name.trim(),
           description: venue.description ?? "",
+          subDescription:
+            typeof venue.sub_description === "string"
+              ? venue.sub_description.slice(0, SUB_DESCRIPTION_MAX)
+              : "",
           address: kind === "beauty" ? (venue.address ?? "") : "",
           phone: venue.phone ?? "",
           hours: kind === "beauty" ? (venue.hours ?? "") : "",
@@ -135,6 +142,8 @@ export function usePublicMenu(slug: string) {
             telegram: venue.telegram_enabled,
             max: venue.max_enabled,
           },
+          orderEnabled: venue.order_enabled !== false,
+          callButtonEnabled: venue.call_button_enabled === true,
         },
         categories,
         dishes,
@@ -173,13 +182,17 @@ async function loadBusinessRow(
   let includeTheme = true;
   let includeKind = true;
   let includePrompt = true;
+  let includeOrderCall = true;
+  let includeSubDescription = true;
   let lastError: { code?: string; message?: string } | null = null;
 
-  for (let attempt = 0; attempt < 4; attempt += 1) {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
     const extra = [
       includeTheme ? "theme" : "",
       includeKind ? "kind" : "",
       includePrompt ? "pwa_prompt_enabled" : "",
+      includeOrderCall ? "order_enabled, call_button_enabled" : "",
+      includeSubDescription ? "sub_description" : "",
     ].filter(Boolean);
     const result = await supabase
       .from("businesses")
@@ -190,6 +203,14 @@ async function loadBusinessRow(
     if (!result.error) return { venue: result.data as BusinessRow | null, error: null };
 
     lastError = result.error;
+    if (includeSubDescription && isMissingSubDescriptionColumn(result.error)) {
+      includeSubDescription = false;
+      continue;
+    }
+    if (includeOrderCall && isMissingOrderCallColumn(result.error)) {
+      includeOrderCall = false;
+      continue;
+    }
     if (includePrompt && isMissingPromptColumn(result.error)) {
       includePrompt = false;
       continue;
@@ -212,6 +233,30 @@ function isMissingPromptColumn(error: { code?: string; message?: string } | null
   if (!error) return false;
   const message = error.message?.toLowerCase() ?? "";
   if (!message.includes("pwa_prompt_enabled")) return false;
+  return (
+    error.code === "42703" ||
+    error.code === "PGRST204" ||
+    message.includes("does not exist") ||
+    message.includes("schema cache")
+  );
+}
+
+function isMissingOrderCallColumn(error: { code?: string; message?: string } | null | undefined) {
+  if (!error) return false;
+  const message = error.message?.toLowerCase() ?? "";
+  if (!message.includes("order_enabled") && !message.includes("call_button_enabled")) return false;
+  return (
+    error.code === "42703" ||
+    error.code === "PGRST204" ||
+    message.includes("does not exist") ||
+    message.includes("schema cache")
+  );
+}
+
+function isMissingSubDescriptionColumn(error: { code?: string; message?: string } | null | undefined) {
+  if (!error) return false;
+  const message = error.message?.toLowerCase() ?? "";
+  if (!message.includes("sub_description")) return false;
   return (
     error.code === "42703" ||
     error.code === "PGRST204" ||

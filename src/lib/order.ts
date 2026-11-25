@@ -69,6 +69,13 @@ export function phoneDigits(value: string) {
   return value.replace(/\D/g, "");
 }
 
+/** Ссылка tel: по номеру заведения. Пустая строка, если цифр нет. */
+export function venuePhoneHref(phone: string) {
+  const value = phone.trim();
+  const href = value.replace(/[^\d+]/g, "");
+  return /\d/.test(href) ? `tel:${href}` : "";
+}
+
 export function availableChannels(channels: OrderChannels): OrderChannel[] {
   const list: OrderChannel[] = [];
   if (channels.telegram) list.push("telegram");

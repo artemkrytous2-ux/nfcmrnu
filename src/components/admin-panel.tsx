@@ -940,55 +940,6 @@ function MenuEditor({
             <div className="grid gap-6 border-t border-line px-4 py-5">
               {accountEmail ? <p className="text-sm text-muted">{accountEmail}</p> : null}
               <div>
-                <p className="text-xs font-medium tracking-[0.16em] text-accent uppercase">Баннер</p>
-                <p className="mt-2 text-sm leading-6 text-muted">{copy.bannerHint}</p>
-                {bannerSrc ? <DishPhoto src={bannerSrc} alt="Баннер" className="mt-4 aspect-[16/7] rounded-2xl" /> : null}
-                {bannerNotice ? (
-                  <p
-                    className={`mt-4 text-sm ${bannerNotice.tone === "error" ? "text-[#e2b2a2]" : "text-accent"}`}
-                    role={bannerNotice.tone === "error" ? "alert" : "status"}
-                  >
-                    {bannerNotice.text}
-                  </p>
-                ) : null}
-                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                  <PhotoPicker
-                    label={menu.venue.banner ? "Заменить фото" : "Добавить фото"}
-                    busy={bannerBusy}
-                    tone="accent"
-                    onFile={(file) => void onBannerFile(file)}
-                  />
-                  {menu.venue.banner ? (
-                    <button
-                      type="button"
-                      onClick={() => void removeBanner()}
-                      disabled={bannerBusy}
-                      className="h-12 rounded-full border border-line px-5 text-sm disabled:opacity-60"
-                    >
-                      Удалить фото
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-
-              <div>
-                <p className="text-xs font-medium tracking-[0.16em] text-accent uppercase">{copy.categoryCount}</p>
-                <CategoryManager
-                  categories={menu.categories}
-                  drafts={categoryDrafts}
-                  editingId={editingCategoryId}
-                  notice={null}
-                  onEdit={beginCategoryEdit}
-                  onCancel={cancelCategoryEdit}
-                  onDraft={(id, value) => setCategoryDrafts((current) => ({ ...current, [id]: value }))}
-                  onSave={(id) => void saveCategory(id)}
-                  onDelete={(id) => void removeCategory(id)}
-                  emptyLabel={copy.noCategories}
-                  nameLabel={copy.categoryNameLabel}
-                />
-              </div>
-
-              <div>
                 <p className="text-xs font-medium tracking-[0.16em] text-accent uppercase">Настройки</p>
                 <p className="mt-2 text-sm leading-6 text-muted">{copy.settingsNote}</p>
                 <div className="mt-4 grid gap-4">
@@ -1143,7 +1094,21 @@ function MenuEditor({
         </section>
 
         {saveTheme ? (
-          <OwnerThemeSection saved={theme} storage={themeStorage} site={site} onSave={saveTheme} />
+          <OwnerThemeSection
+            saved={theme}
+            storage={themeStorage}
+            site={site}
+            onSave={saveTheme}
+            banner={{
+              src: bannerSrc,
+              hasBanner: Boolean(menu.venue.banner),
+              busy: bannerBusy,
+              notice: bannerNotice,
+              hint: copy.bannerHint,
+              onFile: (file) => void onBannerFile(file),
+              onRemove: () => void removeBanner(),
+            }}
+          />
         ) : null}
         <OwnerAppSection
           savedName={pwaName}
@@ -1556,11 +1521,21 @@ function OwnerThemeSection({
   storage,
   site,
   onSave,
+  banner,
 }: {
   saved: MenuTheme;
   storage: "ready" | "missing";
   site: OwnerSite | null;
   onSave: (theme: MenuTheme) => Promise<{ ok: true } | { ok: false; message: string }>;
+  banner?: {
+    src: string;
+    hasBanner: boolean;
+    busy: boolean;
+    notice: { tone: "error" | "success"; text: string } | null;
+    hint: string;
+    onFile: (file: File | undefined) => void;
+    onRemove: () => void;
+  };
 }) {
   const [selected, setSelected] = useState(saved);
   const [notice, setNotice] = useState<{ tone: "error" | "success"; text: string } | null>(null);
@@ -1605,8 +1580,44 @@ function OwnerThemeSection({
         <ChevronDown className={`size-5 shrink-0 text-muted transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open ? (
-      <div className="border-t border-line px-4 py-5">
-      <p className="mt-2 text-sm leading-6 text-muted">
+      <div className="grid gap-6 border-t border-line px-4 py-5">
+      {banner ? (
+        <div>
+          <p className="text-xs font-medium tracking-[0.16em] text-accent uppercase">Баннер</p>
+          <p className="mt-2 text-sm leading-6 text-muted">{banner.hint}</p>
+          {banner.src ? (
+            <DishPhoto src={banner.src} alt="Баннер" className="mt-4 aspect-[16/7] rounded-2xl" />
+          ) : null}
+          {banner.notice ? (
+            <p
+              className={`mt-4 text-sm ${banner.notice.tone === "error" ? "text-[#e2b2a2]" : "text-accent"}`}
+              role={banner.notice.tone === "error" ? "alert" : "status"}
+            >
+              {banner.notice.text}
+            </p>
+          ) : null}
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+            <PhotoPicker
+              label={banner.hasBanner ? "Заменить фото" : "Добавить фото"}
+              busy={banner.busy}
+              tone="accent"
+              onFile={banner.onFile}
+            />
+            {banner.hasBanner ? (
+              <button
+                type="button"
+                onClick={banner.onRemove}
+                disabled={banner.busy}
+                className="h-12 rounded-full border border-line px-5 text-sm disabled:opacity-60"
+              >
+                Удалить фото
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+      <div>
+      <p className="text-sm leading-6 text-muted">
         Тема видна только гостям на публичной странице. Кабинет остаётся прежним.
       </p>
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -1667,6 +1678,7 @@ function OwnerThemeSection({
         >
           {busy ? "Сохраняем…" : "Сохранить оформление"}
         </button>
+      </div>
       </div>
       </div>
       ) : null}

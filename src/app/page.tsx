@@ -44,58 +44,6 @@ const subscriptionBenefits = [
 
 const quarterBenefits = [...subscriptionBenefits];
 
-const comparison = [
-  {
-    service: "Создание сайта",
-    usual: "От 10 000 ₽",
-    nfc: "Включено в подписку",
-    price: true,
-    mark: true,
-  },
-  {
-    service: "Добавление PWA-приложения",
-    usual: "Около 4 000 ₽",
-    nfc: "Включено в подписку. Собственное приложение с индивидуальным названием и иконкой",
-    price: true,
-    mark: true,
-  },
-  {
-    service: "Приём заказов",
-    usual: "Около 2 000 ₽ — настройка приёма заказов в Telegram",
-    nfc: "Включено в подписку. Заказы поступают через сервис",
-    price: true,
-    mark: true,
-  },
-  {
-    service: "Изменение меню и цен",
-    usual: "500–1 000 ₽ за одну правку",
-    nfc: "Через личный кабинет за несколько секунд",
-    price: true,
-    mark: true,
-  },
-  {
-    service: "Хостинг и сервер",
-    usual: "Около 700 ₽/месяц",
-    nfc: "Включено в подписку",
-    price: true,
-    mark: true,
-  },
-  {
-    service: "Техническое управление",
-    usual: "Зависимость от разработчика",
-    nfc: "Самостоятельное управление",
-    price: false,
-    mark: true,
-  },
-  {
-    service: "Обновление информации",
-    usual: "Нужно обращаться к специалисту",
-    nfc: "В любое время через кабинет",
-    price: false,
-    mark: true,
-  },
-];
-
 export default function Home() {
   return (
     <div id="top" className="home flex min-h-full flex-1 flex-col bg-background text-foreground">
@@ -180,77 +128,53 @@ export default function Home() {
 
         <section id="why" className="scroll-mt-20 border-t border-line">
           <div className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-12">
-            <h2 className="text-[26px] leading-none font-extrabold tracking-[-0.03em] uppercase">Почему выбирают NFCMENU</h2>
-            <p className="mt-4 max-w-2xl text-[15px] leading-6 text-muted">
-              Всё необходимое для работы вашего бизнеса онлайн — без отдельной команды разработчиков и лишних расходов.
-            </p>
-            <div className="mt-8">
-              <table className="home-compare">
-                <colgroup>
-                  <col style={{ width: "26%" }} />
-                  <col style={{ width: "37%" }} />
-                  <col style={{ width: "37%" }} />
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th scope="col">Услуга</th>
-                    <th scope="col">
-                      Обычная разработка
-                      <span className="home-compare-caption">цены ориентировочные</span>
-                    </th>
-                    <th scope="col">NFCMENU</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {comparison.map((row) => (
-                    <tr key={row.service}>
-                      <th scope="row">{row.service}</th>
-                      <td className={row.price ? "home-compare-price" : undefined}>{row.usual}</td>
-                      <td>
-                        {row.mark ? <span className="home-compare-mark">{row.nfc}</span> : row.nfc}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <h2 className="max-w-3xl text-[26px] leading-[1.1] font-extrabold tracking-[-0.03em] uppercase sm:text-[30px]">
+              Давайте спросим у ИИ, сколько стоит сделать подобный сайт
+            </h2>
+
+            <figure className="mt-8 overflow-hidden rounded-3xl border border-line bg-card">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/home/ai-site-cost-dialog.png"
+                alt="Диалог с ИИ: создание сайта-витрины от 15 000 до 250 000 ₽, ежемесячная поддержка от 1 000 до 15 000 ₽"
+                className="block h-auto w-full max-w-full"
+                loading="lazy"
+                decoding="async"
+              />
+            </figure>
+
+            <div className="mt-6 rounded-3xl border border-line bg-card px-5 py-6 sm:px-8 sm:py-8">
+              <h3 className="text-[18px] leading-snug font-extrabold tracking-[-0.03em] sm:text-[22px]">
+                А после создания сайта придётся платить каждый месяц:
+              </h3>
+              <ul className="mt-5 space-y-3 text-[15px] leading-6">
+                <li className="flex gap-3">
+                  <span className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-accent" aria-hidden="true" />
+                  <span>
+                    Хостинг — <span className="font-semibold text-foreground">500–1 000 ₽/мес.</span>
+                  </span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-accent" aria-hidden="true" />
+                  <span>
+                    Изменение содержания сайта — ещё{" "}
+                    <span className="font-semibold text-foreground">500–1 000 ₽/мес.</span>
+                  </span>
+                </li>
+              </ul>
+              <p className="mt-5 text-[14px] leading-6 text-muted">
+                Изменения содержания включают добавление новых блюд, изменение цен, создание категорий, изменение
+                иконки приложения и другие правки информации и оформления сайта.
+              </p>
             </div>
 
-            <div className="mt-4 rounded-3xl border border-line bg-card px-6 py-8 sm:mt-6 sm:px-8 sm:py-10">
-              <h3 className="text-[22px] leading-none font-extrabold tracking-[-0.03em]">Сколько стоит содержать сайт целый год?</h3>
-              <div className="mt-8 grid gap-8 lg:grid-cols-2 lg:gap-12">
-                <div>
-                  <p className="text-[13px] font-medium tracking-[0.08em] text-muted uppercase">Обычная разработка</p>
-                  <ul className="mt-4 space-y-2 text-[15px] leading-6 text-muted">
-                    <li>Сайт — 10 000 ₽.</li>
-                    <li>PWA — 4 000 ₽.</li>
-                    <li>Приём заказов в Telegram — 2 000 ₽.</li>
-                    <li>Хостинг — 8 400 ₽.</li>
-                    <li>12 правок — 6 000–12 000 ₽.</li>
-                  </ul>
-                  <p className="mt-6 text-[28px] leading-none font-extrabold tracking-[-0.04em] sm:text-[32px]">30 400–36 400 ₽</p>
-                  <p className="mt-2 text-sm text-muted">за первый год</p>
-                </div>
-                <div className="lg:border-l lg:border-white/10 lg:pl-12">
-                  <p className="text-[13px] font-medium tracking-[0.08em] text-accent uppercase">NFCMENU</p>
-                  <ul className="mt-4 space-y-2 text-[15px] leading-6">
-                    <li>Подписка — 11 880 ₽ за год.</li>
-                    <li>Хостинг, PWA и приём заказов включены.</li>
-                    <li>Настройка под ключ — дополнительно 1 990 ₽ по желанию.</li>
-                  </ul>
-                  <p className="mt-6 text-[36px] leading-none font-extrabold tracking-[-0.04em] sm:text-[44px]">11 880 ₽</p>
-                  <p className="mt-2 text-sm text-muted">за первый год</p>
-                </div>
-              </div>
-              <p className="mt-8 border-t border-line pt-6 text-[15px] leading-6">
-                Итого с настройкой под ключ — <span className="font-extrabold">13 870 ₽</span>.
-              </p>
-              <p className="mt-4 text-[15px] leading-6">
-                Экономия — <span className="font-extrabold">18 520–24 520 ₽</span> без учёта настройки под ключ.
+            <div className="mt-6 rounded-3xl border border-accent/40 bg-accent/10 px-5 py-6 sm:px-8 sm:py-8">
+              <p className="text-[13px] font-medium tracking-[0.12em] text-accent uppercase">С NFCMENU всё проще</p>
+              <p className="mt-3 max-w-2xl text-[18px] leading-snug font-extrabold tracking-[-0.03em] sm:text-[22px]">
+                Сайт, личный кабинет и самостоятельное управление содержанием — за{" "}
+                <span className="text-accent">990 ₽/мес.</span>
               </p>
             </div>
-            <p className="mt-4 max-w-3xl text-[12px] leading-5 text-muted">
-              Цены на стороннюю разработку приведены как ориентиры по открытым предложениям рынка. Итоговая стоимость зависит от состава функций и исполнителя. Расчёт включает 12 небольших правок за год.
-            </p>
           </div>
         </section>
 

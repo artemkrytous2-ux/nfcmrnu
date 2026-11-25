@@ -132,48 +132,54 @@ export default function Home() {
               Давайте спросим у ИИ, сколько стоит сделать подобный сайт
             </h2>
 
-            <figure className="mt-8 overflow-hidden rounded-3xl border border-line bg-card">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/home/ai-site-cost-dialog.png"
-                alt="Диалог с ИИ: создание сайта-витрины от 15 000 до 250 000 ₽, ежемесячная поддержка от 1 000 до 15 000 ₽"
-                className="block h-auto w-full max-w-full"
-                loading="lazy"
-                decoding="async"
-              />
-            </figure>
+            <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,520px)_minmax(0,1fr)] lg:items-stretch lg:gap-8">
+              <figure className="mx-auto w-full max-w-[520px] overflow-hidden rounded-3xl border border-line bg-card lg:mx-0 lg:max-w-none">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/home/ai-site-cost-dialog.png"
+                  alt="Диалог с ИИ: создание сайта-витрины от 15 000 до 250 000 ₽, ежемесячная поддержка от 1 000 до 15 000 ₽"
+                  className="block h-auto w-full max-w-full"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </figure>
 
-            <div className="mt-6 rounded-3xl border border-line bg-card px-5 py-6 sm:px-8 sm:py-8">
-              <h3 className="text-[18px] leading-snug font-extrabold tracking-[-0.03em] sm:text-[22px]">
-                А после создания сайта придётся платить каждый месяц:
-              </h3>
-              <ul className="mt-5 space-y-3 text-[15px] leading-6">
-                <li className="flex gap-3">
-                  <span className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-accent" aria-hidden="true" />
-                  <span>
-                    Хостинг — <span className="font-semibold text-foreground">500–1 000 ₽/мес.</span>
-                  </span>
-                </li>
-                <li className="flex gap-3">
-                  <span className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-accent" aria-hidden="true" />
-                  <span>
-                    Изменение содержания сайта — ещё{" "}
-                    <span className="font-semibold text-foreground">500–1 000 ₽/мес.</span>
-                  </span>
-                </li>
-              </ul>
-              <p className="mt-5 text-[14px] leading-6 text-muted">
-                Изменения содержания включают добавление новых блюд, изменение цен, создание категорий, изменение
-                иконки приложения и другие правки информации и оформления сайта.
-              </p>
-            </div>
+              <div className="flex min-h-0 flex-col gap-6 lg:h-full">
+                <div className="flex flex-1 flex-col rounded-3xl border border-line bg-card px-5 py-6 sm:px-8 sm:py-8">
+                  <h3 className="text-[18px] leading-snug font-extrabold tracking-[-0.03em] sm:text-[22px]">
+                    А после создания сайта придётся платить каждый месяц:
+                  </h3>
+                  <ul className="mt-5 space-y-3 text-[15px] leading-6">
+                    <li className="flex gap-3">
+                      <span className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-accent" aria-hidden="true" />
+                      <span>
+                        Хостинг — <span className="font-semibold text-foreground">500–1 000 ₽/мес.</span>
+                      </span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-accent" aria-hidden="true" />
+                      <span>
+                        Изменение содержания сайта — ещё{" "}
+                        <span className="font-semibold text-foreground">500–1 000 ₽/мес.</span>
+                      </span>
+                    </li>
+                  </ul>
+                  <p className="mt-5 text-[14px] leading-6 text-muted lg:mt-auto lg:pt-6">
+                    Изменения содержания включают добавление новых блюд, изменение цен, создание категорий, изменение
+                    иконки приложения и другие правки информации и оформления сайта.
+                  </p>
+                </div>
 
-            <div className="mt-6 rounded-3xl border border-accent/40 bg-accent/10 px-5 py-6 sm:px-8 sm:py-8">
-              <p className="text-[13px] font-medium tracking-[0.12em] text-accent uppercase">С NFCMENU всё проще</p>
-              <p className="mt-3 max-w-2xl text-[18px] leading-snug font-extrabold tracking-[-0.03em] sm:text-[22px]">
-                Сайт, личный кабинет и самостоятельное управление содержанием — за{" "}
-                <span className="text-accent">990 ₽/мес.</span>
-              </p>
+                <div className="rounded-3xl border border-accent/40 bg-accent/10 px-5 py-6 sm:px-8 sm:py-8">
+                  <p className="text-[13px] font-medium tracking-[0.12em] text-accent uppercase">
+                    С NFCMENU всё проще
+                  </p>
+                  <p className="mt-3 text-[18px] leading-snug font-extrabold tracking-[-0.03em] sm:text-[22px]">
+                    Сайт, личный кабинет и самостоятельное управление содержанием — за{" "}
+                    <span className="text-accent">990 ₽/мес.</span>
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </section>

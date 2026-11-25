@@ -713,6 +713,7 @@ function validateSettings(input: Record<string, unknown>): Failure | Success<{ v
   if (address.length > 300) return fail("Адрес слишком длинный.");
   if (hours.length > 120) return fail("Часы работы слишком длинные.");
   if (!phone.ok) return fail("Введите телефон заведения полностью.");
+  const orderEnabled = input.orderEnabled !== false;
   return {
     ok: true,
     values: {
@@ -723,9 +724,9 @@ function validateSettings(input: Record<string, unknown>): Failure | Success<{ v
       phone: phone.value,
       hours,
       orderPhone: formatPhone(orderPhone.trim()),
-      telegram: input.telegram === true,
-      max: input.max === true,
-      orderEnabled: input.orderEnabled !== false,
+      telegram: orderEnabled && input.telegram === true,
+      max: orderEnabled && input.max === true,
+      orderEnabled,
       callButtonEnabled: input.callButtonEnabled === true,
     },
   };

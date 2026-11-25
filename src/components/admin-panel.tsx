@@ -37,6 +37,7 @@ const emptySettings: OwnerSettings = {
 };
 
 function settingsFromVenue(venue: Venue): OwnerSettings {
+  const orderEnabled = venue.orderEnabled !== false;
   return {
     name: venue.name,
     description: venue.description,
@@ -45,9 +46,9 @@ function settingsFromVenue(venue: Venue): OwnerSettings {
     phone: venue.phone,
     hours: venue.hours,
     orderPhone: venue.orderPhone,
-    telegram: venue.channels.telegram,
-    max: venue.channels.max,
-    orderEnabled: venue.orderEnabled,
+    telegram: orderEnabled && venue.channels.telegram,
+    max: orderEnabled && venue.channels.max,
+    orderEnabled,
     callButtonEnabled: venue.callButtonEnabled,
   };
 }
@@ -1005,32 +1006,24 @@ function MenuEditor({
                       className="min-h-28 w-full resize-y rounded-2xl border border-line bg-background px-4 py-3 text-sm text-foreground outline-none placeholder:text-muted/70 focus:border-accent/60"
                     />
                   </Field>
-                  <div className="rounded-2xl border border-line bg-background/60 p-4">
-                    <p className="text-xs font-medium tracking-[0.16em] text-accent uppercase">
-                      Дополнительные настройки
+                  <Field label="Подописание">
+                    <textarea
+                      id="owner-sub-description"
+                      value={settings.subDescription}
+                      maxLength={SUB_DESCRIPTION_MAX}
+                      onChange={(event) =>
+                        setSettings((current) => ({
+                          ...current,
+                          subDescription: event.target.value.slice(0, SUB_DESCRIPTION_MAX),
+                        }))
+                      }
+                      className="min-h-28 w-full resize-y rounded-2xl border border-line bg-background px-4 py-3 text-sm text-foreground outline-none placeholder:text-muted/70 focus:border-accent/60"
+                      placeholder="Короткий текст под основным описанием"
+                    />
+                    <p className="text-xs text-muted">
+                      {settings.subDescription.length} / {SUB_DESCRIPTION_MAX}
                     </p>
-                    <div className="mt-3 grid gap-2">
-                      <label className="text-sm" htmlFor="owner-sub-description">
-                        Подописание
-                      </label>
-                      <textarea
-                        id="owner-sub-description"
-                        value={settings.subDescription}
-                        maxLength={SUB_DESCRIPTION_MAX}
-                        onChange={(event) =>
-                          setSettings((current) => ({
-                            ...current,
-                            subDescription: event.target.value.slice(0, SUB_DESCRIPTION_MAX),
-                          }))
-                        }
-                        className="min-h-24 w-full resize-y rounded-2xl border border-line bg-background px-4 py-3 text-sm text-foreground outline-none placeholder:text-muted/70 focus:border-accent/60"
-                        placeholder="Короткий текст под основным описанием"
-                      />
-                      <p className="text-xs text-muted">
-                        {settings.subDescription.length} / {SUB_DESCRIPTION_MAX}
-                      </p>
-                    </div>
-                  </div>
+                  </Field>
                   <Field label="Адрес">
                     <input
                       value={settings.address}
@@ -1081,31 +1074,46 @@ function MenuEditor({
                   <label className="flex items-center gap-3 text-sm">
                     <input
                       type="checkbox"
+                      checked={settings.orderEnabled}
+                      onChange={(event) => {
+                        const orderEnabled = event.target.checked;
+                        setSettings((current) => ({
+                          ...current,
+                          orderEnabled,
+                          ...(orderEnabled ? {} : { telegram: false, max: false }),
+                        }));
+                      }}
+                      className="size-4 accent-[#3dbe7a]"
+                    />
+                    {copy.acceptMessengerOrders}
+                  </label>
+                  <label
+                    className={`flex items-center gap-3 text-sm ${settings.orderEnabled ? "" : "opacity-60"}`}
+                  >
+                    <input
+                      type="checkbox"
                       checked={settings.telegram}
-                      onChange={(event) => setSettings((current) => ({ ...current, telegram: event.target.checked }))}
+                      disabled={!settings.orderEnabled}
+                      onChange={(event) =>
+                        setSettings((current) => ({ ...current, telegram: event.target.checked }))
+                      }
                       className="size-4 accent-[#3dbe7a]"
                     />
                     {copy.telegramOrders}
                   </label>
-                  <label className="flex items-center gap-3 text-sm">
+                  <label
+                    className={`flex items-center gap-3 text-sm ${settings.orderEnabled ? "" : "opacity-60"}`}
+                  >
                     <input
                       type="checkbox"
                       checked={settings.max}
-                      onChange={(event) => setSettings((current) => ({ ...current, max: event.target.checked }))}
-                      className="size-4 accent-[#3dbe7a]"
-                    />
-                    {copy.maxOrders}
-                  </label>
-                  <label className="flex items-center gap-3 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={settings.orderEnabled}
+                      disabled={!settings.orderEnabled}
                       onChange={(event) =>
-                        setSettings((current) => ({ ...current, orderEnabled: event.target.checked }))
+                        setSettings((current) => ({ ...current, max: event.target.checked }))
                       }
                       className="size-4 accent-[#3dbe7a]"
                     />
-                    {copy.acceptMessengerOrders}
+                    {copy.maxOrders}
                   </label>
                   <label className="flex items-center gap-3 text-sm">
                     <input
@@ -1417,31 +1425,42 @@ function MenuEditor({
             <label className="flex items-center gap-3 text-sm">
               <input
                 type="checkbox"
+                checked={settings.orderEnabled}
+                onChange={(event) => {
+                  const orderEnabled = event.target.checked;
+                  setSettings((current) => ({
+                    ...current,
+                    orderEnabled,
+                    ...(orderEnabled ? {} : { telegram: false, max: false }),
+                  }));
+                }}
+                className="size-4 accent-[#3dbe7a]"
+              />
+              {copy.acceptMessengerOrders}
+            </label>
+            <label
+              className={`flex items-center gap-3 text-sm ${settings.orderEnabled ? "" : "opacity-60"}`}
+            >
+              <input
+                type="checkbox"
                 checked={settings.telegram}
+                disabled={!settings.orderEnabled}
                 onChange={(event) => setSettings((current) => ({ ...current, telegram: event.target.checked }))}
                 className="size-4 accent-[#3dbe7a]"
               />
               Принимать заказы в Telegram
             </label>
-            <label className="flex items-center gap-3 text-sm">
+            <label
+              className={`flex items-center gap-3 text-sm ${settings.orderEnabled ? "" : "opacity-60"}`}
+            >
               <input
                 type="checkbox"
                 checked={settings.max}
+                disabled={!settings.orderEnabled}
                 onChange={(event) => setSettings((current) => ({ ...current, max: event.target.checked }))}
                 className="size-4 accent-[#3dbe7a]"
               />
               Принимать заказы в MAX
-            </label>
-            <label className="flex items-center gap-3 text-sm">
-              <input
-                type="checkbox"
-                checked={settings.orderEnabled}
-                onChange={(event) =>
-                  setSettings((current) => ({ ...current, orderEnabled: event.target.checked }))
-                }
-                className="size-4 accent-[#3dbe7a]"
-              />
-              {copy.acceptMessengerOrders}
             </label>
             <label className="flex items-center gap-3 text-sm">
               <input

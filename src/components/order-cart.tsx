@@ -50,7 +50,7 @@ export function OrderCart({
   const [message, setMessage] = useState("");
   const [barHidden, setBarHidden] = useState(false);
 
-  const channels = availableChannels(venue.channels);
+  const channels = availableChannels(venue.channels, venue.orderEnabled !== false);
   const lines = useMemo<CartLine[]>(() => {
     return dishes.flatMap((dish) => {
       const quantity = quantities[dish.id] ?? 0;

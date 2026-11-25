@@ -21,7 +21,7 @@ function bookingMessage(venueName: string) {
 export function beautyWriteLinks(venue: Venue): { channel: OrderChannel; href: string }[] {
   const message = bookingMessage(venue.name);
   const links: { channel: OrderChannel; href: string }[] = [];
-  for (const channel of availableChannels(venue.channels)) {
+  for (const channel of availableChannels(venue.channels, venue.orderEnabled !== false)) {
     if (channel === "telegram" && phoneDigits(venue.orderPhone).length < telegramPhoneLength) continue;
     links.push({ channel, href: messengerLink(channel, venue.orderPhone, message) });
   }

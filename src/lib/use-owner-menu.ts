@@ -1168,6 +1168,7 @@ function validateSettings(settings: OwnerSettings, copy: ReturnType<typeof cabin
   }
   if (!phone.ok) return { ok: false as const, message: "Введите телефон заведения полностью." };
 
+  const orderEnabled = settings.orderEnabled !== false;
   return {
     ok: true as const,
     values: {
@@ -1178,10 +1179,10 @@ function validateSettings(settings: OwnerSettings, copy: ReturnType<typeof cabin
       phone: phone.value,
       hours,
       orderPhone: formatPhone(settings.orderPhone.trim()),
-      telegram: settings.telegram,
-      max: settings.max,
-      orderEnabled: settings.orderEnabled,
-      callButtonEnabled: settings.callButtonEnabled,
+      telegram: orderEnabled && settings.telegram === true,
+      max: orderEnabled && settings.max === true,
+      orderEnabled,
+      callButtonEnabled: settings.callButtonEnabled === true,
     },
   };
 }

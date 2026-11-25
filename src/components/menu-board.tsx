@@ -42,7 +42,7 @@ export function MenuBoard({
   const dishes = visibleDishes.filter((dish) => dish.categoryId === categoryId);
   const ordersEnabled = menu?.venue.orderEnabled !== false;
   const callHref =
-    menu?.venue.callButtonEnabled === true ? venuePhoneHref(menu.venue.phone) : "";
+    menu?.venue.callButtonEnabled === true ? venuePhoneHref(menu.venue.orderPhone) : "";
   const showCall = Boolean(callHref);
 
   return (

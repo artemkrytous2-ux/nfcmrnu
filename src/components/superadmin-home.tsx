@@ -16,14 +16,48 @@ type Business = {
   isArchived: boolean;
 };
 
+type ActivationRequest = {
+  id: string;
+  userId: string;
+  planCode: string;
+  planAmountRub: number;
+  planDurationMonths: number;
+  desiredSlug: string;
+  contactPhone: string;
+  preferredContact: string | null;
+  mediaStatus?: "pending" | "ready" | "failed";
+  venueName: string;
+  status: string;
+  errorMessage: string;
+  businessId: string | null;
+  createdAt: string;
+};
+
 const statusLabel: Record<string, string> = {
   draft: "Черновик",
   demo: "Демо",
   active: "Рабочее",
 };
 
+const activationStatusLabel: Record<string, string> = {
+  pending: "Ожидает",
+  processing: "В обработке",
+  activated: "Активирована",
+  failed: "Ошибка",
+  cancelled: "Отменена",
+};
+
+const preferredContactLabel: Record<string, string> = {
+  phone: "Звонок",
+  telegram: "Telegram",
+  whatsapp: "WhatsApp",
+  max: "MAX",
+};
+
 export function SuperadminHome() {
   const [businesses, setBusinesses] = useState<Business[] | null>(null);
+  const [activationRequests, setActivationRequests] = useState<ActivationRequest[] | null>(null);
+  const [activationError, setActivationError] = useState("");
   const [loadError, setLoadError] = useState("");
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
@@ -35,6 +69,28 @@ export function SuperadminHome() {
   const [actionError, setActionError] = useState("");
   const [slugConfirm, setSlugConfirm] = useState<Record<string, string>>({});
   const [openedId, setOpenedId] = useState<string | null>(null);
+  const [activatingId, setActivatingId] = useState<string | null>(null);
+  const [activateError, setActivateError] = useState("");
+  const [activateNotice, setActivateNotice] = useState("");
+
+  const loadActivationRequests = async () => {
+    setActivationError("");
+    setActivationRequests(null);
+    const result = await authorized("/api/superadmin/activation-requests");
+    if (!result.ok) {
+      setActivationError(result.message);
+      setActivationRequests(null);
+      return;
+    }
+    const rows = Array.isArray(result.payload.requests) ? result.payload.requests : null;
+    if (!rows || rows.some((row) => !isActivationRequest(row))) {
+      setActivationError("Не удалось загрузить заявки на активацию");
+      setActivationRequests(null);
+      return;
+    }
+    setActivationError("");
+    setActivationRequests(rows);
+  };
 
   const load = async () => {
     const result = await authorized("/api/superadmin/businesses");
@@ -51,6 +107,7 @@ export function SuperadminHome() {
     }
     setLoadError("");
     setBusinesses(rows);
+    await loadActivationRequests();
   };
 
   useEffect(() => {
@@ -68,6 +125,22 @@ export function SuperadminHome() {
         return;
       }
       setBusinesses(rows);
+
+      const activation = await authorized("/api/superadmin/activation-requests");
+      if (!active) return;
+      if (!activation.ok) {
+        setActivationError(activation.message);
+        setActivationRequests(null);
+        return;
+      }
+      const activationRows = Array.isArray(activation.payload.requests) ? activation.payload.requests : null;
+      if (!activationRows || activationRows.some((row) => !isActivationRequest(row))) {
+        setActivationError("Не удалось загрузить заявки на активацию");
+        setActivationRequests(null);
+        return;
+      }
+      setActivationError("");
+      setActivationRequests(activationRows);
     })();
     return () => {
       active = false;
@@ -165,6 +238,43 @@ export function SuperadminHome() {
     return null;
   };
 
+  const confirmAndActivate = async (request: ActivationRequest) => {
+    const venue = request.venueName || "заведение";
+    const confirmed = window.confirm(
+      `Оплата проверена?\n\n«${venue}» · ${request.planAmountRub.toLocaleString("ru-RU")} ₽ / ${request.planDurationMonths} мес.\nТелефон: ${request.contactPhone}\nАдрес: ${request.desiredSlug}\n\nПодтвердить оплату и активировать кабинет клиента?`,
+    );
+    if (!confirmed) return;
+
+    setActivateError("");
+    setActivateNotice("");
+    setActivatingId(request.id);
+    const result = await authorized(`/api/superadmin/activation-requests/${request.id}/activate`, {
+      method: "POST",
+      body: JSON.stringify({ paymentConfirmed: true }),
+    });
+    setActivatingId(null);
+    if (!result.ok) {
+      setActivateError(result.message);
+      await loadActivationRequests();
+      return;
+    }
+
+    const businessId =
+      result.payload && typeof result.payload.businessId === "string" ? result.payload.businessId : "";
+    const slugValue =
+      result.payload && typeof result.payload.slug === "string" ? result.payload.slug : request.desiredSlug;
+    const already =
+      result.payload && typeof result.payload.alreadyActivated === "boolean"
+        ? result.payload.alreadyActivated
+        : false;
+    setActivateNotice(
+      already
+        ? `Заявка уже была активирована ранее · /${slugValue}`
+        : `Оплата подтверждена, заведение активировано · /${slugValue}${businessId ? ` · id ${businessId}` : ""}`,
+    );
+    await load();
+  };
+
   if (openedId) {
     return (
       <div>
@@ -187,6 +297,117 @@ export function SuperadminHome() {
       <div>
         <h1 className="text-[28px] leading-[1.05] font-extrabold tracking-[-0.03em]">Заведения</h1>
       </div>
+
+      <section className="rounded-3xl border border-line bg-card p-6 sm:p-8">
+        <h2 className="text-xl font-extrabold tracking-[-0.03em]">Заявки на активацию</h2>
+        <p className="mt-3 max-w-xl text-[15px] leading-6 text-muted">
+          Заявки из персональной демоверсии. После ручной проверки оплаты нажмите «Подтвердить оплату и
+          активировать» — демо перенесётся в кабинет клиента без повторного заполнения.
+        </p>
+        {activationError ? (
+          <div className="mt-4 rounded-2xl border border-accent/40 bg-accent/10 px-4 py-3">
+            <p className="text-sm text-foreground" role="alert">
+              {activationError}
+            </p>
+            <button
+              type="button"
+              onClick={() => void loadActivationRequests()}
+              className="mt-3 inline-flex h-10 items-center rounded-full border border-line bg-background px-4 text-sm"
+            >
+              Повторить загрузку
+            </button>
+          </div>
+        ) : null}
+        {activateError ? (
+          <p className="mt-4 text-sm text-accent" role="alert">
+            {activateError}
+          </p>
+        ) : null}
+        {activateNotice ? (
+          <p className="mt-4 text-sm text-muted" role="status">
+            {activateNotice}
+          </p>
+        ) : null}
+        {!activationError && activationRequests === null ? (
+          <div className="mt-4 h-24 animate-pulse rounded-2xl bg-background" />
+        ) : null}
+        {!activationError && activationRequests && activationRequests.length === 0 ? (
+          <p className="mt-4 text-sm text-muted">Пока нет заявок.</p>
+        ) : null}
+        {!activationError && activationRequests && activationRequests.length > 0 ? (
+          <div className="mt-5 grid gap-3">
+            {activationRequests.map((request) => {
+              const canActivate =
+                request.status === "pending" ||
+                request.status === "failed" ||
+                request.status === "processing";
+              return (
+                <article key={request.id} className="rounded-2xl border border-line bg-background px-4 py-4">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="text-[15px] font-semibold text-foreground">
+                        {request.venueName || "Без названия"}
+                      </p>
+                      <p className="mt-1 text-sm text-muted">
+                        {request.planAmountRub.toLocaleString("ru-RU")} ₽ · {request.planDurationMonths} мес. ·{" "}
+                        {request.desiredSlug}
+                      </p>
+                    </div>
+                    <p className="rounded-full border border-line px-3 py-1 text-xs text-muted">
+                      {activationStatusLabel[request.status] ?? request.status}
+                    </p>
+                  </div>
+                  <div className="mt-3 grid gap-1 text-sm text-foreground">
+                    <p>
+                      Телефон:{" "}
+                      <a href={`tel:${request.contactPhone}`} className="text-accent">
+                        {request.contactPhone}
+                      </a>
+                    </p>
+                    <p className="text-muted">
+                      Связь:{" "}
+                      {request.preferredContact
+                        ? preferredContactLabel[request.preferredContact] ?? request.preferredContact
+                        : "не указан"}
+                      {" · "}
+                      {new Date(request.createdAt).toLocaleString("ru-RU")}
+                      {request.mediaStatus ? ` · фото: ${request.mediaStatus}` : null}
+                    </p>
+                    {request.businessId ? (
+                      <p className="text-muted">Заведение: {request.businessId}</p>
+                    ) : null}
+                    {request.errorMessage ? (
+                      <p className="text-accent">Ошибка: {request.errorMessage}</p>
+                    ) : null}
+                  </div>
+                  {canActivate ? (
+                    <button
+                      type="button"
+                      disabled={activatingId !== null}
+                      onClick={() => void confirmAndActivate(request)}
+                      className="mt-4 inline-flex h-11 items-center justify-center rounded-full bg-accent px-5 text-sm font-medium text-[#062117] disabled:opacity-60"
+                    >
+                      {activatingId === request.id
+                        ? "Активируем…"
+                        : request.status === "failed" || request.status === "processing"
+                          ? "Повторить активацию"
+                          : "Подтвердить оплату и активировать"}
+                    </button>
+                  ) : null}
+                  {request.status === "activated" && request.desiredSlug ? (
+                    <p className="mt-3 text-sm text-muted">
+                      Активировано ·{" "}
+                      <a href={`/${request.desiredSlug}`} className="text-accent">
+                        /{request.desiredSlug}
+                      </a>
+                    </p>
+                  ) : null}
+                </article>
+              );
+            })}
+          </div>
+        ) : null}
+      </section>
 
       <section className="rounded-3xl border border-line bg-card p-6 sm:p-8">
         <h2 className="text-xl font-extrabold tracking-[-0.03em]">Создать заведение</h2>
@@ -337,24 +558,43 @@ async function authorized(path: string, init?: RequestInit) {
   }
 
   const payload = (await response.json().catch(() => null)) as {
+    ok?: boolean;
     status?: string;
     message?: string;
     businesses?: unknown;
     business?: unknown;
+    requests?: unknown;
+    businessId?: unknown;
+    slug?: unknown;
+    subscriptionId?: unknown;
+    alreadyActivated?: unknown;
+    requestId?: unknown;
   } | null;
-  if (!response.ok || !payload) {
+  const activating =
+    init?.method === "POST" && path.includes("/activation-requests/") && path.endsWith("/activate");
+  if (!response.ok || !payload || (activating && payload.ok !== true)) {
     const creating = init?.method === "POST" && path === "/api/superadmin/businesses";
+    const loadingActivation = path === "/api/superadmin/activation-requests";
     return {
       ok: false as const,
-      message: payload?.message || (creating ? "Не удалось создать заведение" : failureMessage(payload?.status)),
+      message:
+        payload?.message ||
+        (creating
+          ? "Не удалось создать заведение"
+          : activating
+            ? "Не удалось активировать заявку"
+            : loadingActivation
+              ? failureMessage(payload?.status, "activation")
+              : failureMessage(payload?.status, "businesses")),
     };
   }
   return { ok: true as const, payload };
 }
 
-function failureMessage(status: string | undefined) {
+function failureMessage(status: string | undefined, kind: "businesses" | "activation" = "businesses") {
   if (status === "anonymous") return "Сессия не подтверждена. Войдите снова.";
   if (status === "forbidden") return "Доступ запрещён";
+  if (kind === "activation") return "Не удалось загрузить заявки на активацию";
   return "Не удалось загрузить заведения";
 }
 
@@ -395,6 +635,32 @@ function isBusiness(value: unknown): value is Business {
     typeof row.hasOwner === "boolean" &&
     typeof row.isBlocked === "boolean" &&
     typeof row.isArchived === "boolean"
+  );
+}
+
+function isActivationRequest(value: unknown): value is ActivationRequest {
+  if (!value || typeof value !== "object") return false;
+  const row = value as Partial<ActivationRequest>;
+  return (
+    typeof row.id === "string" &&
+    typeof row.userId === "string" &&
+    typeof row.planCode === "string" &&
+    typeof row.planAmountRub === "number" &&
+    typeof row.planDurationMonths === "number" &&
+    typeof row.desiredSlug === "string" &&
+    typeof row.contactPhone === "string" &&
+    typeof row.venueName === "string" &&
+    typeof row.status === "string" &&
+    typeof row.errorMessage === "string" &&
+    typeof row.createdAt === "string" &&
+    (row.preferredContact === null ||
+      row.preferredContact === undefined ||
+      typeof row.preferredContact === "string") &&
+    (row.mediaStatus === undefined ||
+      row.mediaStatus === "pending" ||
+      row.mediaStatus === "ready" ||
+      row.mediaStatus === "failed") &&
+    (row.businessId === null || row.businessId === undefined || typeof row.businessId === "string")
   );
 }
 

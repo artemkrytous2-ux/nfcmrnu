@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { ChevronDown, MoreHorizontal } from "lucide-react";
+import { DemoPlanCards } from "@/components/demo-plan-cards";
 import { DishPhoto } from "@/components/dish-photo";
 import { cabinetCopy } from "@/lib/cabinet-copy";
 import { SUB_DESCRIPTION_MAX, type Dish, type Venue } from "@/lib/menu";
@@ -376,12 +376,12 @@ export function DemoEditor({
       </p>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <Link
-          href="/#tariffs"
+        <a
+          href="#demo-tariffs"
           className="inline-flex h-11 items-center rounded-full bg-accent px-4 text-sm font-medium text-[#062117]"
         >
           Подключить NFCMENU
-        </Link>
+        </a>
         <button
           type="button"
           onClick={openPreview}
@@ -397,6 +397,10 @@ export function DemoEditor({
         >
           {resetBusy ? "Сбрасываем…" : "Сбросить демоверсию"}
         </button>
+      </div>
+
+      <div className="mt-8">
+        <DemoPlanCards userId={userId} />
       </div>
 
       <div className="mt-6 grid grid-cols-2 gap-3">
@@ -947,12 +951,12 @@ export function DemoEditor({
           видны другим пользователям. Настоящий публичный сайт для гостей подключается по тарифу — после оплаты
           появится перенос черновика в настоящее заведение.
         </p>
-        <Link
-          href="/#tariffs"
+        <a
+          href="#demo-tariffs"
           className="mt-4 inline-flex h-11 items-center rounded-full border border-accent/50 px-4 text-sm text-accent"
         >
-          Подключить NFCMENU
-        </Link>
+          Выбрать тариф
+        </a>
       </section>
     </div>
   );

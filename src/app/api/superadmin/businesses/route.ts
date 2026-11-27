@@ -1,4 +1,6 @@
 import { businessKindForCreate } from "@/lib/business-kind";
+import { daysRemaining, subscriptionStatusLabel } from "@/lib/subscription-lifecycle";
+import { isActivationPlanCode } from "@/lib/activation-plans";
 import { requireSuperadmin, superadminDenied } from "@/lib/superadmin-server";
 
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -11,6 +13,13 @@ type BusinessRow = {
   owner_id: string | null;
   is_blocked: boolean;
   is_archived: boolean;
+};
+
+type SubscriptionRow = {
+  business_id: string;
+  plan_code: string;
+  ends_at: string;
+  status: string;
 };
 
 export async function GET(request: Request) {
@@ -26,9 +35,30 @@ export async function GET(request: Request) {
     return Response.json({ ok: false, status: "error" }, { status: 500 });
   }
 
+  const ids = data.map((row) => row.id as string);
+  const subByBusiness = new Map<string, ReturnType<typeof toSubscriptionSummary>>();
+
+  if (ids.length > 0) {
+    const { data: subs } = await access.supabase
+      .from("business_subscriptions")
+      .select("business_id, plan_code, ends_at, status")
+      .in("business_id", ids)
+      .order("ends_at", { ascending: false });
+
+    if (Array.isArray(subs)) {
+      for (const row of subs as SubscriptionRow[]) {
+        if (subByBusiness.has(row.business_id)) continue;
+        subByBusiness.set(row.business_id, toSubscriptionSummary(row));
+      }
+    }
+  }
+
   return Response.json({
     ok: true,
-    businesses: data.map(toBusiness),
+    businesses: data.map((row) => ({
+      ...toBusiness(row as BusinessRow),
+      subscription: subByBusiness.get(row.id as string) ?? null,
+    })),
   });
 }
 
@@ -62,7 +92,10 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, status: "invalid", message }, { status: 400 });
   }
 
-  return Response.json({ ok: true, business: toBusiness(data as BusinessRow) });
+  return Response.json({
+    ok: true,
+    business: { ...toBusiness(data as BusinessRow), subscription: null },
+  });
 }
 
 function validateDraft(name: string, slug: string) {
@@ -84,5 +117,22 @@ function toBusiness(row: BusinessRow) {
     hasOwner: row.owner_id !== null,
     isBlocked: row.is_blocked === true,
     isArchived: row.is_archived === true,
+  };
+}
+
+function toSubscriptionSummary(row: SubscriptionRow) {
+  const remaining = daysRemaining(row.ends_at);
+  const status =
+    row.status === "cancelled"
+      ? "cancelled"
+      : row.status === "expired" || remaining <= 0
+        ? "expired"
+        : "active";
+  return {
+    planCode: isActivationPlanCode(row.plan_code) ? row.plan_code : null,
+    endsAt: row.ends_at,
+    status,
+    daysRemaining: remaining,
+    statusLabel: subscriptionStatusLabel(status, row.ends_at),
   };
 }

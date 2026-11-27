@@ -3,8 +3,18 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { MoreHorizontal } from "lucide-react";
 import { AdminPanel } from "@/components/admin-panel";
+import { SuperadminMessagesPanel } from "@/components/superadmin-messages-panel";
+import { SuperadminSubscriptionPanel } from "@/components/superadmin-subscription-panel";
 import { businessKindChoices, type BusinessKind } from "@/lib/business-kind";
 import { getSupabase } from "@/lib/supabase";
+
+type BusinessSubscriptionSummary = {
+  planCode: string | null;
+  endsAt: string;
+  status: string;
+  daysRemaining: number;
+  statusLabel: string;
+};
 
 type Business = {
   id: string;
@@ -14,6 +24,7 @@ type Business = {
   hasOwner: boolean;
   isBlocked: boolean;
   isArchived: boolean;
+  subscription?: BusinessSubscriptionSummary | null;
 };
 
 type ActivationRequest = {
@@ -479,6 +490,12 @@ export function SuperadminHome() {
       ) : null}
       {businesses ? (
         <div className="grid gap-8">
+          <SuperadminMessagesPanel
+            businesses={businesses
+              .filter((business) => !business.isArchived)
+              .map((business) => ({ id: business.id, name: business.name, slug: business.slug }))}
+            authorized={authorized}
+          />
           {actionError ? (
             <p className="text-sm text-accent" role="alert">
               {actionError}
@@ -492,6 +509,7 @@ export function SuperadminHome() {
             onArchive={(id) => void changeArchive(id, true)}
             onStatus={(business, status) => void changeStatus(business, status)}
             onAssignOwner={assignOwner}
+            onSubscriptionChanged={() => void load()}
           />
           <BusinessSection
             title="Демо"
@@ -501,6 +519,7 @@ export function SuperadminHome() {
             onArchive={(id) => void changeArchive(id, true)}
             onStatus={(business, status) => void changeStatus(business, status)}
             onAssignOwner={assignOwner}
+            onSubscriptionChanged={() => void load()}
           />
           <BusinessSection
             title="Рабочие"
@@ -510,6 +529,7 @@ export function SuperadminHome() {
             onArchive={(id) => void changeArchive(id, true)}
             onStatus={(business, status) => void changeStatus(business, status)}
             onAssignOwner={assignOwner}
+            onSubscriptionChanged={() => void load()}
           />
           <BusinessSection
             title="Архив"
@@ -521,6 +541,7 @@ export function SuperadminHome() {
             onRestore={(id) => void changeArchive(id, false)}
             onRemove={(business) => void removeForever(business)}
             onAssignOwner={assignOwner}
+            onSubscriptionChanged={() => void load()}
           />
         </div>
       ) : null}
@@ -676,6 +697,7 @@ function BusinessSection({
   onRemove,
   onStatus,
   onAssignOwner,
+  onSubscriptionChanged,
 }: {
   title: string;
   businesses: Business[];
@@ -688,6 +710,7 @@ function BusinessSection({
   onRemove?: (business: Business) => void;
   onStatus?: (business: Business, status: "demo" | "active") => void;
   onAssignOwner?: (id: string, email: string, password: string) => Promise<string | null>;
+  onSubscriptionChanged?: () => void;
 }) {
   return (
     <section className="grid gap-3">
@@ -708,6 +731,7 @@ function BusinessSection({
             onRemove={onRemove}
             onStatus={onStatus}
             onAssignOwner={onAssignOwner}
+            onSubscriptionChanged={onSubscriptionChanged}
           />
         ))}
       </ul>
@@ -727,6 +751,7 @@ function BusinessCard({
   onRemove,
   onStatus,
   onAssignOwner,
+  onSubscriptionChanged,
 }: {
   business: Business;
   action: { id: string; kind: "archive" | "delete" | "owner" | "status" } | null;
@@ -738,6 +763,7 @@ function BusinessCard({
   onRemove?: (business: Business) => void;
   onStatus?: (business: Business, status: "demo" | "active") => void;
   onAssignOwner?: (id: string, email: string, password: string) => Promise<string | null>;
+  onSubscriptionChanged?: () => void;
 }) {
   const [note, setNote] = useState("");
   const [noteTone, setNoteTone] = useState<"muted" | "accent">("muted");
@@ -810,6 +836,9 @@ function BusinessCard({
             {statusLabel[business.status] ?? business.status}
             {business.isBlocked ? " · заблокировано" : ""}
             {business.hasOwner ? "" : " · без владельца"}
+            {business.subscription
+              ? ` · ${business.subscription.statusLabel} · ${business.subscription.daysRemaining} дн.`
+              : " · без подписки"}
           </p>
         </div>
         <div className="relative shrink-0" ref={menuRef}>
@@ -892,6 +921,13 @@ function BusinessCard({
           </button>
         </div>
       ) : null}
+      <SuperadminSubscriptionPanel
+        businessId={business.id}
+        businessName={business.name}
+        initial={business.subscription ?? null}
+        authorized={authorized}
+        onChanged={onSubscriptionChanged}
+      />
     </li>
   );
 }

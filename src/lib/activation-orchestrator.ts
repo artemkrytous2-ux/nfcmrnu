@@ -12,6 +12,7 @@ import { businessKind, type BusinessKind } from "@/lib/business-kind";
 import { SUB_DESCRIPTION_MAX } from "@/lib/menu";
 import { menuTheme, type MenuTheme } from "@/lib/menu-theme";
 import { pwaNameFromValue, storedPwaName } from "@/lib/pwa-settings";
+import { applySubscriptionChange } from "@/lib/subscription-lifecycle";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const MENU_PHOTOS_BUCKET = "menu-photos";
@@ -672,63 +673,29 @@ async function ensureSubscription(
   businessId: string,
   planCode: ActivationPlanCode,
 ) {
-  const existing = await input.admin
-    .from("business_subscriptions")
-    .select("id, business_id, status")
-    .eq("activation_request_id", row.id)
-    .maybeSingle();
-  if (existing.error) throw new Error("Не удалось проверить подписку");
-  if (existing.data?.id) return existing.data.id as string;
+  // Единый lifecycle: assign + идемпотентность по activation_request_id / payment_external_id.
+  // Повторная активация той же заявки не продлевает срок повторно.
+  const result = await applySubscriptionChange({
+    admin: input.admin,
+    businessId,
+    action: "assign",
+    planCode,
+    source: input.source,
+    paymentProvider: input.paymentProvider ?? (input.source === "robokassa" ? "robokassa" : "manual"),
+    paymentExternalId: input.paymentExternalId ?? "",
+    activationRequestId: row.id,
+    notes: [input.notes?.trim() ?? "", `activation:${row.id}`, `source:${input.source}`]
+      .filter(Boolean)
+      .join(" · "),
+  });
 
-  const active = await input.admin
-    .from("business_subscriptions")
-    .select("id")
-    .eq("business_id", businessId)
-    .eq("status", "active")
-    .maybeSingle();
-  if (active.error) throw new Error("Не удалось проверить активную подписку");
-  if (active.data?.id) {
-    throw new Error("У заведения уже есть активная подписка без связи с этой заявкой");
-  }
-
-  const startsAt = new Date();
-  const endsAt = addMonths(startsAt, row.plan_duration_months);
-  const notes = clip(
-    [input.notes?.trim() ?? "", `activation:${row.id}`, `source:${input.source}`].filter(Boolean).join(" · "),
-    2000,
-  );
-
-  const { data, error } = await input.admin
-    .from("business_subscriptions")
-    .insert({
-      business_id: businessId,
-      plan_code: planCode,
-      plan_amount_rub: row.plan_amount_rub,
-      plan_duration_months: row.plan_duration_months,
-      starts_at: startsAt.toISOString(),
-      ends_at: endsAt.toISOString(),
-      status: "active",
-      source: input.source,
-      payment_provider: clip(input.paymentProvider ?? (input.source === "robokassa" ? "robokassa" : ""), 40),
-      payment_external_id: clip(input.paymentExternalId ?? "", 120),
-      activation_request_id: row.id,
-      notes,
-    })
-    .select("id")
-    .maybeSingle();
-
-  if (error || !data?.id) {
-    if (error?.code === "23505") {
-      const again = await input.admin
-        .from("business_subscriptions")
-        .select("id")
-        .eq("activation_request_id", row.id)
-        .maybeSingle();
-      if (again.data?.id) return again.data.id as string;
+  if (!result.ok) {
+    if (result.status === "conflict") {
+      throw new Error(result.message);
     }
-    throw new Error("Не удалось создать подписку");
+    throw new Error(result.message || "Не удалось создать подписку");
   }
-  return data.id as string;
+  return result.subscriptionId;
 }
 
 async function allocateSlug(admin: SupabaseClient, base: string) {
@@ -865,14 +832,6 @@ function resolvePwaName(fromPayload: string, venueName: string) {
   if (explicit.name) return explicit.name;
   const fallback = storedPwaName(pwaNameFromValue(venueName).slice(0, 40));
   return fallback.ok ? fallback.name : null;
-}
-
-function addMonths(date: Date, months: number) {
-  const result = new Date(date.getTime());
-  const day = result.getDate();
-  result.setMonth(result.getMonth() + months);
-  if (result.getDate() < day) result.setDate(0);
-  return result;
 }
 
 function clip(value: string, max: number) {

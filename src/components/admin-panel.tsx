@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, Eye, EyeOff, MoreHorizontal, Plus, Trash2 } from "lucide-react";
 import { DishPhoto } from "@/components/dish-photo";
+import { OwnerMessages } from "@/components/owner-messages";
 import { formatPrice, readImageFile, SUB_DESCRIPTION_MAX, type Dish, type Venue } from "@/lib/menu";
 import { formatPhone } from "@/lib/order";
 import { menuPhotoUrl } from "@/lib/photos";
@@ -649,6 +650,8 @@ function MenuEditor({
             </p>
           ) : null}
         </div>
+
+        <OwnerMessages />
 
         <div className="mt-6 grid grid-cols-2 gap-3">
           <div className="rounded-2xl border border-line bg-card px-4 py-4">

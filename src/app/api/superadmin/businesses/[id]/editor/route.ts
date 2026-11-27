@@ -1,3 +1,4 @@
+import { revalidatePublicVenueByBusinessId } from "@/lib/public-menu-cache";
 import { requireSuperadmin, superadminDenied } from "@/lib/superadmin-server";
 import {
   addSuperadminCategory,
@@ -55,6 +56,10 @@ export async function POST(request: Request, context: Context) {
                   : action === "deletePhoto"
                     ? await deleteSuperadminPhoto(access.supabase, id, body?.kind, body?.productId)
                     : { ok: false as const, message: "Не удалось сохранить изменения." };
+
+  if (result.ok) {
+    await revalidatePublicVenueByBusinessId(access.supabase, id);
+  }
 
   return Response.json(result, { status: result.ok ? 200 : 400 });
 }

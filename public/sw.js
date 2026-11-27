@@ -1,6 +1,7 @@
 const STATIC_CACHE = "nfcmenu-static-v1";
 const OFFLINE_CACHE = "nfcmenu-offline-v1";
-const CURRENT_CACHES = new Set([STATIC_CACHE, OFFLINE_CACHE]);
+const VENUE_ICON_CACHE = "nfcmenu-venue-icons-v1";
+const CURRENT_CACHES = new Set([STATIC_CACHE, OFFLINE_CACHE, VENUE_ICON_CACHE]);
 
 const PRECACHE = [
   "/offline.html",
@@ -20,13 +21,15 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(
         keys
           .filter((key) => key.startsWith("nfcmenu-") && !CURRENT_CACHES.has(key))
           .map((key) => caches.delete(key)),
-      ),
-    ),
+      );
+      await self.clients.claim();
+    })(),
   );
 });
 
@@ -39,18 +42,28 @@ self.addEventListener("fetch", (event) => {
   if (hasCredentialHeaders(request)) return;
   if (isPrivatePath(url.pathname)) return;
   if (isNextDataRequest(request, url)) return;
+  // Dynamic image optimizer is not content-hashed like /_next/static — leave to network.
+  if (isNextImageOptimizer(url.pathname)) return;
 
   if (isVersionedStatic(url.pathname)) {
     event.respondWith(cacheFirst(request, STATIC_CACHE));
     return;
   }
 
-  if (isPwaIcon(url.pathname)) {
+  if (isDefaultPwaIcon(url.pathname)) {
     event.respondWith(cacheFirst(request, OFFLINE_CACHE));
     return;
   }
 
+  // Per-slug icon URLs: network-first so icon updates are not stuck forever in SW cache.
+  // Cache match uses the full request URL (slug + search), so venues stay isolated.
+  if (isVenuePwaIcon(url.pathname)) {
+    event.respondWith(networkFirst(request, VENUE_ICON_CACHE));
+    return;
+  }
+
   if (isPublicDocument(request)) {
+    // Navigate network-only with offline shell — do not cache /m/[slug] HTML.
     event.respondWith(networkOrOffline(request));
   }
 });
@@ -85,8 +98,16 @@ function isVersionedStatic(pathname) {
   return pathname.startsWith("/_next/static/");
 }
 
-function isPwaIcon(pathname) {
+function isNextImageOptimizer(pathname) {
+  return pathname === "/_next/image";
+}
+
+function isDefaultPwaIcon(pathname) {
   return /^\/icons\/icon-(180|192|512)\.png$/.test(pathname);
+}
+
+function isVenuePwaIcon(pathname) {
+  return /^\/m\/[a-z0-9]+(?:-[a-z0-9]+)*\/(icon|apple-icon)\/?$/.test(pathname);
 }
 
 function isPublicDocument(request) {
@@ -107,6 +128,19 @@ async function cacheFirst(request, cacheName) {
   const response = await fetch(request);
   if (canStore(request, response)) await cache.put(request, response.clone());
   return response;
+}
+
+async function networkFirst(request, cacheName) {
+  const cache = await caches.open(cacheName);
+  try {
+    const response = await fetch(request);
+    if (canStore(request, response)) await cache.put(request, response.clone());
+    return response;
+  } catch {
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    throw new Error("offline");
+  }
 }
 
 async function networkOrOffline(request) {

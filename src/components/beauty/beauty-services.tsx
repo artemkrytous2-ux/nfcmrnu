@@ -86,6 +86,7 @@ export function BeautyServices({
                         src={menuPhotoUrl(service.image)}
                         alt=""
                         className="aspect-square rounded-[12px]"
+                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                       />
                       <div className="px-1 pt-2 pb-1">
                         <h3 className="line-clamp-2 text-[13px] leading-tight font-semibold break-words text-foreground">

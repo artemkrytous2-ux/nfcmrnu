@@ -1,4 +1,5 @@
 import { deleteArchivedBusiness } from "@/lib/archive-delete";
+import { revalidatePublicVenueBySlug } from "@/lib/public-menu-cache";
 import { isBusinessId } from "@/lib/superadmin-editor";
 import { requireSuperadmin, superadminDenied } from "@/lib/superadmin-server";
 
@@ -16,5 +17,8 @@ export async function POST(request: Request, context: Context) {
   const body = (await request.json().catch(() => null)) as { slug?: unknown } | null;
   const result = await deleteArchivedBusiness(access.supabase, id, body?.slug);
   if (!result.ok) return Response.json({ ok: false, message: result.message }, { status: result.status });
+  if (typeof body?.slug === "string") {
+    revalidatePublicVenueBySlug(body.slug);
+  }
   return Response.json({ ok: true });
 }

@@ -20,6 +20,8 @@ export function BeautyHero({
           src={photo}
           alt=""
           className="aspect-[2/1] rounded-[18px]"
+          priority
+          sizes="(max-width: 1152px) 100vw, 1152px"
         />
       ) : (
         <div className="menu-banner relative aspect-[2/1] overflow-hidden rounded-[18px]">

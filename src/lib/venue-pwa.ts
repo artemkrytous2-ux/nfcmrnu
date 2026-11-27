@@ -1,6 +1,7 @@
-import { cacheLife } from "next/cache";
+import { cacheLife, cacheTag } from "next/cache";
 import { connection } from "next/server";
 import { isMissingPwaColumn, pwaNameFromValue } from "@/lib/pwa-settings";
+import { venuePwaCacheTag } from "@/lib/public-menu-cache";
 
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const filePattern = /^[A-Za-z0-9._-]{1,180}$/;
@@ -29,6 +30,7 @@ export async function loadVenuePwa(slug: string): Promise<VenuePwa | null> {
 
 export async function loadVenuePwaMetadata(slug: string): Promise<VenuePwa | null> {
   "use cache";
+  cacheTag(venuePwaCacheTag(slug));
   cacheLife("minutes");
   return readVenue(slug, "metadata");
 }

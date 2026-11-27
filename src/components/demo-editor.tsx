@@ -523,6 +523,7 @@ export function DemoEditor({
                     src={menuPhotoUrl(activeDraft.image)}
                     alt="Предпросмотр"
                     className="aspect-[16/9] rounded-2xl"
+                    sizes="(max-width: 640px) 100vw, 560px"
                   />
                 ) : null}
                 <div className="flex flex-wrap gap-2">
@@ -601,6 +602,7 @@ export function DemoEditor({
                   src={menuPhotoUrl(dish.image)}
                   alt=""
                   className="size-16 shrink-0 rounded-2xl sm:size-[4.5rem]"
+                  sizes="72px"
                 />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{dish.name}</p>
@@ -657,6 +659,7 @@ export function DemoEditor({
               src={menuPhotoUrl(menu.venue.banner)}
               alt="Баннер"
               className="aspect-[16/7] rounded-2xl"
+              sizes="(max-width: 640px) 100vw, 560px"
             />
           ) : null}
           <div className="flex flex-wrap gap-2">

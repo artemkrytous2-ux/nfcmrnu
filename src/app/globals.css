@@ -17,7 +17,8 @@
   --color-accent: var(--accent);
   --color-line: var(--line);
   --font-sans: var(--font-manrope);
-  --font-display: var(--font-cormorant);
+  /* Falls back to Manrope unless a beauty page mounts --font-cormorant. */
+  --font-display: var(--font-cormorant, var(--font-manrope));
 }
 
 body {

@@ -1,3 +1,4 @@
+import { revalidatePublicVenueByBusinessId } from "@/lib/public-menu-cache";
 import { requireSuperadmin, superadminDenied } from "@/lib/superadmin-server";
 import { isBusinessId, saveSuperadminPhoto } from "@/lib/superadmin-editor";
 
@@ -15,5 +16,8 @@ export async function POST(request: Request, context: Context) {
     return Response.json({ ok: false, message: "Не удалось загрузить фотографию." }, { status: 400 });
   }
   const result = await saveSuperadminPhoto(access.supabase, id, form?.get("kind"), form?.get("productId"), file);
+  if (result.ok) {
+    await revalidatePublicVenueByBusinessId(access.supabase, id);
+  }
   return Response.json(result, { status: result.ok ? 200 : 400 });
 }

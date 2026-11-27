@@ -8,6 +8,7 @@ import { isMissingThemeColumn, menuTheme, menuThemes, type MenuTheme } from "@/l
 import { formatPhone, phoneDigits } from "@/lib/order";
 import { isOwnedPhotoPath, MAX_MENU_PHOTO_BYTES, MENU_PHOTOS_BUCKET, photoObjectPath } from "@/lib/photos";
 import { isMissingPwaColumn, pwaNameFromValue, readSquareIconBlob, reportPwaIconError, storedPwaName } from "@/lib/pwa-settings";
+import { ownerWriteOk } from "@/lib/notify-public-menu-changed";
 import { getSupabase } from "@/lib/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -252,7 +253,7 @@ export function useOwnerMenu(businessId: string) {
         : current,
     );
 
-    return { ok: true as const };
+    return ownerWriteOk();
   };
 
   const saveTheme = async (next: MenuTheme) => {
@@ -288,7 +289,7 @@ export function useOwnerMenu(businessId: string) {
     }
 
     setTheme(next);
-    return { ok: true as const };
+    return ownerWriteOk();
   };
 
   const addCategory = async (name: string) => {
@@ -322,7 +323,7 @@ export function useOwnerMenu(businessId: string) {
         ? { ...current, categories: [...current.categories, { id: created.id, name: created.name.trim() }] }
         : current,
     );
-    return { ok: true as const, id: created.id };
+    return ownerWriteOk({ id: created.id });
   };
 
   const renameCategory = async (categoryId: string, name: string) => {
@@ -354,7 +355,7 @@ export function useOwnerMenu(businessId: string) {
           }
         : current,
     );
-    return { ok: true as const };
+    return ownerWriteOk();
   };
 
   const deleteCategory = async (categoryId: string) => {
@@ -402,7 +403,7 @@ export function useOwnerMenu(businessId: string) {
         ? { ...current, categories: current.categories.filter((category) => category.id !== categoryId) }
         : current,
     );
-    return { ok: true as const };
+    return ownerWriteOk();
   };
 
   const saveProduct = async (input: ProductInput) => {
@@ -459,7 +460,7 @@ export function useOwnerMenu(businessId: string) {
       if (error || !created?.id) return { ok: false as const, message: productErrorMessage(error, copy) };
       const dish = dishFromRow(created);
       setMenu((current) => (current ? { ...current, dishes: [...current.dishes, dish] } : current));
-      return { ok: true as const, dish };
+      return ownerWriteOk({ dish });
     }
 
     const { data, error } = await owned.supabase
@@ -477,7 +478,7 @@ export function useOwnerMenu(businessId: string) {
         ? { ...current, dishes: current.dishes.map((item) => (item.id === dish.id ? dish : item)) }
         : current,
     );
-    return { ok: true as const, dish };
+    return ownerWriteOk({ dish });
   };
 
   const setProductVisible = async (productId: string, visible: boolean) => {
@@ -520,7 +521,7 @@ export function useOwnerMenu(businessId: string) {
           }
         : current,
     );
-    return { ok: true as const, visible: savedVisible };
+    return ownerWriteOk({ visible: savedVisible });
   };
 
   const deleteProduct = async (productId: string) => {
@@ -541,7 +542,7 @@ export function useOwnerMenu(businessId: string) {
     setMenu((current) =>
       current ? { ...current, dishes: current.dishes.filter((dish) => dish.id !== productId) } : current,
     );
-    return { ok: true as const };
+    return ownerWriteOk();
   };
 
   const setProductPhoto = async (productId: string, file: File) => {
@@ -614,7 +615,7 @@ export function useOwnerMenu(businessId: string) {
           }
         : current,
     );
-    return { ok: true as const, path };
+    return ownerWriteOk({ path });
   };
 
   const deleteProductPhoto = async (productId: string) => {
@@ -660,7 +661,7 @@ export function useOwnerMenu(businessId: string) {
           }
         : current,
     );
-    return { ok: true as const };
+    return ownerWriteOk();
   };
 
   const setBannerPhoto = async (file: File) => {
@@ -723,7 +724,7 @@ export function useOwnerMenu(businessId: string) {
     setMenu((current) =>
       current ? { ...current, venue: { ...current.venue, banner: path } } : current,
     );
-    return { ok: true as const, path };
+    return ownerWriteOk({ path });
   };
 
   const deleteBannerPhoto = async () => {
@@ -763,7 +764,7 @@ export function useOwnerMenu(businessId: string) {
     setMenu((current) =>
       current ? { ...current, venue: { ...current.venue, banner: "" } } : current,
     );
-    return { ok: true as const };
+    return ownerWriteOk();
   };
 
   const savePwaName = async (name: string) => {
@@ -787,7 +788,7 @@ export function useOwnerMenu(businessId: string) {
       return { ok: false as const, message: "Не удалось сохранить название приложения." };
     }
     setPwaName(savedName);
-    return { ok: true as const };
+    return ownerWriteOk();
   };
 
   const setPwaIcon = async (file: File) => {
@@ -857,7 +858,7 @@ export function useOwnerMenu(businessId: string) {
       await owned.supabase.storage.from(MENU_PHOTOS_BUCKET).remove([previous]);
     }
     setStoredPwaIcon(path);
-    return { ok: true as const, path };
+    return ownerWriteOk({ path });
   };
 
   const deletePwaIcon = async () => {
@@ -896,7 +897,7 @@ export function useOwnerMenu(businessId: string) {
       return { ok: false as const, message: "Не удалось удалить иконку." };
     }
     setStoredPwaIcon("");
-    return { ok: true as const };
+    return ownerWriteOk();
   };
 
   return {

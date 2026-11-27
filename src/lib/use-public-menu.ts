@@ -1,60 +1,58 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { businessKind, isMissingKindColumn, type BusinessKind } from "@/lib/business-kind";
-import { SUB_DESCRIPTION_MAX, type MenuState } from "@/lib/menu";
-import { isMissingThemeColumn, menuTheme, type MenuTheme } from "@/lib/menu-theme";
+import {
+  buildPublicMenuData,
+  PUBLIC_BUSINESS_COLUMNS,
+  PUBLIC_MENU_SLUG_PATTERN,
+  type PublicBusinessRow,
+  type PublicCategoryRow,
+  type PublicMenuData,
+  type PublicProductRow,
+  unavailablePublicMenu,
+} from "@/lib/public-menu";
+import { isMissingKindColumn } from "@/lib/business-kind";
+import { isMissingThemeColumn } from "@/lib/menu-theme";
 import { getPublicSupabase } from "@/lib/supabase";
 
-type BusinessRow = {
-  id: string;
-  name: string;
-  description: string;
-  sub_description?: unknown;
-  address?: string;
-  phone: string;
-  hours?: string;
-  order_phone: string;
-  banner_path: string;
-  telegram_enabled: boolean;
-  max_enabled: boolean;
-  order_enabled?: unknown;
-  call_button_enabled?: unknown;
-  theme?: unknown;
-  kind?: unknown;
-  pwa_prompt_enabled?: unknown;
-};
+function snapshotFromInitial(slug: string, initial?: PublicMenuData | null): PublicMenuData | null {
+  if (!initial || initial.slug !== slug) return null;
+  return initial;
+}
 
-type CategoryRow = {
-  id: string;
-  name: string;
-  sort_order: number;
-};
-
-type ProductRow = {
-  id: string;
-  category_id: string;
-  name: string;
-  description: string;
-  price: number;
-  image_path: string;
-  sort_order: number;
-};
-
-const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const businessColumns =
-  "id, name, description, address, phone, hours, order_phone, banner_path, telegram_enabled, max_enabled";
-
-export function usePublicMenu(slug: string) {
-  const [menu, setMenu] = useState<MenuState | null>(null);
-  const [theme, setTheme] = useState<MenuTheme>("default");
-  const [kind, setKind] = useState<BusinessKind>("food");
-  const [ready, setReady] = useState(false);
-  const [unavailable, setUnavailable] = useState(false);
-  const [promptEnabled, setPromptEnabled] = useState(false);
+export function usePublicMenu(slug: string, initial?: PublicMenuData | null) {
+  const seeded = snapshotFromInitial(slug, initial);
+  const [menu, setMenu] = useState(seeded?.menu ?? null);
+  const [theme, setTheme] = useState(seeded?.theme ?? "default");
+  const [kind, setKind] = useState(seeded?.kind ?? "food");
+  const [ready, setReady] = useState(Boolean(seeded));
+  const [unavailable, setUnavailable] = useState(seeded?.unavailable ?? false);
+  const [promptEnabled, setPromptEnabled] = useState(seeded?.promptEnabled ?? false);
 
   useEffect(() => {
+    const fromServer = snapshotFromInitial(slug, initial);
+    if (fromServer) {
+      // Server already provided this slug — do not hit Supabase again after hydration.
+      setMenu(fromServer.menu);
+      setTheme(fromServer.theme);
+      setKind(fromServer.kind);
+      setPromptEnabled(fromServer.promptEnabled);
+      setUnavailable(fromServer.unavailable);
+      setReady(true);
+      return;
+    }
+
     let active = true;
+
+    const applySnapshot = (snapshot: PublicMenuData) => {
+      if (!active) return;
+      setMenu(snapshot.menu);
+      setTheme(snapshot.theme);
+      setKind(snapshot.kind);
+      setPromptEnabled(snapshot.promptEnabled);
+      setUnavailable(snapshot.unavailable);
+      setReady(true);
+    };
 
     const load = async () => {
       setReady(false);
@@ -64,10 +62,8 @@ export function usePublicMenu(slug: string) {
       setUnavailable(false);
       setPromptEnabled(false);
 
-      if (!slugPattern.test(slug)) {
-        if (!active) return;
-        setUnavailable(true);
-        setReady(true);
+      if (!PUBLIC_MENU_SLUG_PATTERN.test(slug)) {
+        applySnapshot(unavailablePublicMenu(slug));
         return;
       }
 
@@ -77,13 +73,9 @@ export function usePublicMenu(slug: string) {
       if (!active) return;
       const venue = loaded.venue;
       if (loaded.error || !venue?.id) {
-        setUnavailable(true);
-        setReady(true);
+        applySnapshot(unavailablePublicMenu(slug));
         return;
       }
-      const kind = businessKind(venue.kind);
-      setTheme(menuTheme(venue.theme));
-      setKind(kind);
 
       const [categoriesResult, productsResult] = await Promise.all([
         supabase
@@ -101,84 +93,33 @@ export function usePublicMenu(slug: string) {
 
       if (!active) return;
       if (categoriesResult.error || productsResult.error) {
-        setUnavailable(true);
-        setReady(true);
+        applySnapshot(unavailablePublicMenu(slug));
         return;
       }
 
-      const categories = ((categoriesResult.data ?? []) as CategoryRow[])
-        .filter((category) => category.id && category.name.trim())
-        .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name, "ru"))
-        .map((category) => ({ id: category.id, name: category.name.trim() }));
-      const categoryIds = new Set(categories.map((category) => category.id));
-      const dishes = ((productsResult.data ?? []) as ProductRow[])
-        .filter((product) => product.id && product.name.trim() && categoryIds.has(product.category_id))
-        .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name, "ru"))
-        .map((product) => ({
-          id: product.id,
-          categoryId: product.category_id,
-          name: product.name.trim(),
-          description: product.description?.trim() ?? "",
-          price: Number.isFinite(Number(product.price)) ? Math.round(Number(product.price)) : 0,
-          image: product.image_path ?? "",
-          visible: true,
-        }));
-
-      setPromptEnabled(venue.pwa_prompt_enabled === true);
-      setMenu({
-        venue: {
-          name: venue.name.trim(),
-          description: venue.description ?? "",
-          subDescription:
-            typeof venue.sub_description === "string"
-              ? venue.sub_description.slice(0, SUB_DESCRIPTION_MAX)
-              : "",
-          address: kind === "beauty" ? (venue.address ?? "") : "",
-          phone: venue.phone ?? "",
-          hours: kind === "beauty" ? (venue.hours ?? "") : "",
-          orderPhone: venue.order_phone ?? "",
-          banner: venue.banner_path ?? "",
-          channels: {
-            telegram: venue.telegram_enabled,
-            max: venue.max_enabled,
-          },
-          orderEnabled: venue.order_enabled !== false,
-          callButtonEnabled: venue.call_button_enabled === true,
-        },
-        categories,
-        dishes,
-      });
-      setReady(true);
+      applySnapshot(
+        buildPublicMenuData(
+          slug,
+          venue,
+          (categoriesResult.data ?? []) as PublicCategoryRow[],
+          (productsResult.data ?? []) as PublicProductRow[],
+        ),
+      );
     };
 
     void load().catch(() => {
-      if (!active) return;
-      setMenu(null);
-      setPromptEnabled(false);
-      setUnavailable(true);
-      setReady(true);
+      applySnapshot(unavailablePublicMenu(slug));
     });
 
     return () => {
       active = false;
     };
-  }, [slug]);
+  }, [slug, initial]);
 
   return { menu, theme, kind, ready, unavailable, promptEnabled };
 }
 
-async function loadPublishedBusiness(
-  supabase: ReturnType<typeof getPublicSupabase>,
-  slug: string,
-) {
-  return loadBusinessRow(supabase, businessColumns, slug);
-}
-
-async function loadBusinessRow(
-  supabase: ReturnType<typeof getPublicSupabase>,
-  columns: string,
-  slug: string,
-) {
+async function loadPublishedBusiness(supabase: ReturnType<typeof getPublicSupabase>, slug: string) {
   let includeTheme = true;
   let includeKind = true;
   let includePrompt = true;
@@ -196,11 +137,11 @@ async function loadBusinessRow(
     ].filter(Boolean);
     const result = await supabase
       .from("businesses")
-      .select(extra.length > 0 ? `${columns}, ${extra.join(", ")}` : columns)
+      .select(extra.length > 0 ? `${PUBLIC_BUSINESS_COLUMNS}, ${extra.join(", ")}` : PUBLIC_BUSINESS_COLUMNS)
       .eq("slug", slug)
       .eq("is_published", true)
       .maybeSingle();
-    if (!result.error) return { venue: result.data as BusinessRow | null, error: null };
+    if (!result.error) return { venue: result.data as PublicBusinessRow | null, error: null };
 
     lastError = result.error;
     if (includeSubDescription && isMissingSubDescriptionColumn(result.error)) {

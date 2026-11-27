@@ -1,3 +1,4 @@
+import { revalidatePublicVenueBySlug } from "@/lib/public-menu-cache";
 import { isBusinessId } from "@/lib/superadmin-editor";
 import { requireSuperadmin, superadminDenied } from "@/lib/superadmin-server";
 
@@ -80,6 +81,8 @@ export async function POST(request: Request, context: Context) {
   ) {
     return Response.json({ ok: false, message: "Не удалось обновить статус. Повторите попытку." }, { status: 500 });
   }
+
+  revalidatePublicVenueBySlug(after.slug);
 
   return Response.json({
     ok: true,

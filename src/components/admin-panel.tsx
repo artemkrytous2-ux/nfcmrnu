@@ -783,7 +783,12 @@ function MenuEditor({
                 </button>
               ) : null}
               {activeDraft.image ? (
-                <DishPhoto src={menuPhotoUrl(activeDraft.image)} alt="Предпросмотр" className="aspect-[16/9] rounded-2xl" />
+                <DishPhoto
+                  src={menuPhotoUrl(activeDraft.image)}
+                  alt="Предпросмотр"
+                  className="aspect-[16/9] rounded-2xl"
+                  sizes="(max-width: 640px) 100vw, 560px"
+                />
               ) : null}
               <label className="flex items-center gap-3 text-sm">
                 <input
@@ -865,7 +870,12 @@ function MenuEditor({
               const menuOpen = dishMenuId === dish.id;
               return (
                 <li key={dish.id} className="flex items-center gap-3 border-b border-line py-4 sm:gap-4">
-                  <DishPhoto src={menuPhotoUrl(dish.image)} alt="" className="size-16 shrink-0 rounded-2xl sm:size-[4.5rem]" />
+                  <DishPhoto
+                    src={menuPhotoUrl(dish.image)}
+                    alt=""
+                    className="size-16 shrink-0 rounded-2xl sm:size-[4.5rem]"
+                    sizes="72px"
+                  />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium">{dish.name}</p>
                     <p className="mt-1 truncate text-sm text-muted">{category?.name}</p>
@@ -1197,7 +1207,12 @@ function MenuEditor({
             </button>
           ) : null}
           {activeDraft.image ? (
-            <DishPhoto src={menuPhotoUrl(activeDraft.image)} alt="Предпросмотр" className="aspect-[16/9] rounded-2xl" />
+            <DishPhoto
+              src={menuPhotoUrl(activeDraft.image)}
+              alt="Предпросмотр"
+              className="aspect-[16/9] rounded-2xl"
+              sizes="(max-width: 640px) 100vw, 560px"
+            />
           ) : null}
           <label className="flex items-center gap-3 text-sm">
             <input
@@ -1236,7 +1251,14 @@ function MenuEditor({
           <p className="mt-3 text-sm leading-6 text-muted">
             Эта картинка стоит вверху публичного меню. Без неё гости видят аккуратную заглушку.
           </p>
-          {bannerSrc ? <DishPhoto src={bannerSrc} alt="Баннер" className="mt-4 aspect-[16/7] rounded-2xl" /> : null}
+          {bannerSrc ? (
+            <DishPhoto
+              src={bannerSrc}
+              alt="Баннер"
+              className="mt-4 aspect-[16/7] rounded-2xl"
+              sizes="(max-width: 640px) 100vw, 560px"
+            />
+          ) : null}
           {bannerNotice ? (
             <p
               className={`mt-4 text-sm ${bannerNotice.tone === "error" ? "text-[#e2b2a2]" : "text-accent"}`}
@@ -1472,7 +1494,12 @@ function MenuEditor({
               const category = menu.categories.find((item) => item.id === dish.categoryId);
               return (
                 <li key={dish.id} className="flex gap-3 py-3">
-                  <DishPhoto src={menuPhotoUrl(dish.image)} alt="" className="size-16 shrink-0 rounded-xl" />
+                  <DishPhoto
+                    src={menuPhotoUrl(dish.image)}
+                    alt=""
+                    className="size-16 shrink-0 rounded-xl"
+                    sizes="64px"
+                  />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -1589,7 +1616,12 @@ function OwnerThemeSection({
           <p className="text-xs font-medium tracking-[0.16em] text-accent uppercase">Баннер</p>
           <p className="mt-2 text-sm leading-6 text-muted">{banner.hint}</p>
           {banner.src ? (
-            <DishPhoto src={banner.src} alt="Баннер" className="mt-4 aspect-[16/7] rounded-2xl" />
+            <DishPhoto
+              src={banner.src}
+              alt="Баннер"
+              className="mt-4 aspect-[16/7] rounded-2xl"
+              sizes="(max-width: 640px) 100vw, 560px"
+            />
           ) : null}
           {banner.notice ? (
             <p
@@ -1773,7 +1805,7 @@ function OwnerAppSection({
         обрезается по центру до квадрата. Пока её нет, используется стандартная иконка NFCMENU.
       </p>
       <div className="mt-4 flex items-center gap-4 rounded-2xl border border-line bg-background p-4">
-        <DishPhoto src={previewSrc} alt="" className="size-16 shrink-0 rounded-2xl" />
+        <DishPhoto src={previewSrc} alt="" className="size-16 shrink-0 rounded-2xl" sizes="64px" />
         <div className="min-w-0">
           <p className="text-xs text-muted">На экране «Домой»</p>
           <p className="mt-1 truncate text-base font-medium">{previewName}</p>

@@ -1,17 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Cormorant_Garamond, Manrope } from "next/font/google";
+import { Manrope } from "next/font/google";
 import { PwaRegister } from "@/components/pwa-register";
 import "./globals.css";
 
 const manrope = Manrope({
   variable: "--font-manrope",
   subsets: ["latin", "cyrillic"],
-});
-
-const display = Cormorant_Garamond({
-  variable: "--font-cormorant",
-  subsets: ["latin", "cyrillic"],
-  weight: ["500", "600"],
+  display: "swap",
 });
 
 export const viewport: Viewport = {
@@ -41,10 +36,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="ru"
-      className={`${manrope.variable} ${display.variable} h-full antialiased`}
-    >
+    <html lang="ru" className={`${manrope.variable} h-full antialiased`}>
       <body className="min-h-full bg-background text-foreground">
         <PwaRegister />
         {children}

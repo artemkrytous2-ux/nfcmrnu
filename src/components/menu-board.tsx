@@ -66,6 +66,8 @@ export function MenuBoard({
               src={menuPhotoUrl(menu.venue.banner)}
               alt={`Баннер ${menu.venue.name}`}
               className="mt-5 aspect-[16/7] rounded-[22px]"
+              priority
+              sizes="(max-width: 440px) 100vw, 440px"
             />
           ) : (
             <div className="menu-banner menu-banner-line mt-5 rounded-[22px] border border-dashed px-5 py-9 text-center">
@@ -135,7 +137,12 @@ export function MenuBoard({
           <ul className="mt-4 grid grid-cols-2 gap-3">
             {dishes.map((dish) => (
               <li key={dish.id} className="flex flex-col rounded-[22px] bg-card p-2">
-                <DishPhoto src={menuPhotoUrl(dish.image)} alt={dish.name} className="aspect-[1.05/1] rounded-[16px]" />
+                <DishPhoto
+                  src={menuPhotoUrl(dish.image)}
+                  alt={dish.name}
+                  className="aspect-[1.05/1] rounded-[16px]"
+                  sizes="(max-width: 440px) 50vw, 210px"
+                />
                 <div className="flex flex-1 flex-col px-1.5 pt-3 pb-1.5">
                   <h3 className="text-[13px] leading-[1.15] font-extrabold tracking-[0.01em] uppercase">
                     {dish.name}

@@ -322,6 +322,14 @@ export function TryGate() {
                     ? "Создать аккаунт"
                     : "Войти"}
               </button>
+              {mode === "login" ? (
+                <Link
+                  href="/try/recover"
+                  className="justify-self-center text-[15px] text-muted"
+                >
+                  Забыли пароль?
+                </Link>
+              ) : null}
             </form>
 
             <Link href="/admin" className={`${authSecondaryLink} mt-4`}>

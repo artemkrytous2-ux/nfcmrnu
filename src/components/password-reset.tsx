@@ -5,9 +5,26 @@ import Link from "next/link";
 import { AuthFrame, authPrimaryButton } from "@/components/auth-frame";
 import { PasswordField } from "@/components/password-field";
 import { getSupabase } from "@/lib/supabase";
-import { establishRecoverySession } from "@/lib/password-recovery";
+import {
+  OWNER_RESET_PATH,
+  assertPasswordRecoverySession,
+  clearPasswordRecoveryConfirmation,
+  establishRecoverySession,
+} from "@/lib/password-recovery";
 
-export function PasswordReset() {
+type PasswordResetProps = {
+  resetPath?: string;
+  recoverHref?: string;
+  loginHref?: string;
+  successMessage?: string;
+};
+
+export function PasswordReset({
+  resetPath = OWNER_RESET_PATH,
+  recoverHref = "/admin/recover",
+  loginHref = "/admin",
+  successMessage = "Теперь можно войти в кабинет с новым паролем.",
+}: PasswordResetProps) {
   const [ready, setReady] = useState(false);
   const [valid, setValid] = useState(false);
   const [password, setPassword] = useState("");
@@ -18,7 +35,7 @@ export function PasswordReset() {
 
   useEffect(() => {
     let active = true;
-    void establishRecoverySession()
+    void establishRecoverySession(resetPath)
       .then((ok) => {
         if (!active) return;
         setValid(ok);
@@ -32,7 +49,7 @@ export function PasswordReset() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [resetPath]);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -47,12 +64,31 @@ export function PasswordReset() {
 
     setPending(true);
     setError("");
+
+    const recoveryOk = await assertPasswordRecoverySession();
+    if (!recoveryOk) {
+      setPending(false);
+      setValid(false);
+      setError("Ссылка недействительна или устарела. Запросите письмо ещё раз.");
+      return;
+    }
+
     const { error: updateError } = await getSupabase().auth.updateUser({ password });
     if (updateError) {
       setPending(false);
-      setError("Не удалось сохранить пароль. Запросите ссылку ещё раз.");
+      const text = updateError.message.toLowerCase();
+      if (text.includes("expired") || text.includes("session") || text.includes("auth")) {
+        setError("Ссылка истекла или сессия недействительна. Запросите письмо ещё раз.");
+        setValid(false);
+      } else if (text.includes("password") && (text.includes("weak") || text.includes("least"))) {
+        setError("Пароль слишком простой. Используйте не менее 8 символов.");
+      } else {
+        setError("Не удалось сохранить пароль. Запросите ссылку ещё раз.");
+      }
       return;
     }
+
+    clearPasswordRecoveryConfirmation();
     await getSupabase().auth.signOut();
     setPending(false);
     setDone(true);
@@ -70,9 +106,10 @@ export function PasswordReset() {
     return (
       <AuthFrame title="Новый пароль">
         <p className="text-[15px] leading-6 text-muted">
-          Ссылка недействительна или устарела. Запросите письмо ещё раз.
+          Ссылка недействительна или устарела, либо открыта без письма восстановления. Запросите новую
+          ссылку, чтобы задать пароль.
         </p>
-        <Link href="/admin/recover" className={`${authPrimaryButton} mt-6`}>
+        <Link href={recoverHref} className={`${authPrimaryButton} mt-6`}>
           Запросить ссылку
         </Link>
       </AuthFrame>
@@ -82,8 +119,8 @@ export function PasswordReset() {
   if (done) {
     return (
       <AuthFrame title="Пароль обновлён">
-        <p className="text-[15px] leading-6 text-muted">Теперь можно войти в кабинет с новым паролем.</p>
-        <Link href="/admin" className={`${authPrimaryButton} mt-6`}>
+        <p className="text-[15px] leading-6 text-muted">{successMessage}</p>
+        <Link href={loginHref} className={`${authPrimaryButton} mt-6`}>
           Войти
         </Link>
       </AuthFrame>

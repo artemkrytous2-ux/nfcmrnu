@@ -2,8 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const dismissPeriodMs = 7 * 24 * 60 * 60 * 1000;
-
 type InstallMode = "hidden" | "safari" | "in-app" | "android";
 
 type BeforeInstallPromptEvent = Event & {
@@ -16,7 +14,7 @@ export function VenueInstallPrompt({ slug, enabled }: { slug: string; enabled: b
   const promptEvent = useRef<BeforeInstallPromptEvent | null>(null);
 
   useEffect(() => {
-    if (!enabled || isStandalone() || dismissedRecently(slug)) {
+    if (!enabled || isStandalone() || isInstalled(slug) || isSessionClosed(slug)) {
       setMode("hidden");
       return;
     }
@@ -31,14 +29,19 @@ export function VenueInstallPrompt({ slug, enabled }: { slug: string; enabled: b
       return;
     }
 
+    // Android / desktop Chromium: wait for a real beforeinstallprompt before showing UI.
     const onPrompt = (event: Event) => {
       event.preventDefault();
       promptEvent.current = event as BeforeInstallPromptEvent;
+      if (isStandalone() || isInstalled(slug) || isSessionClosed(slug)) {
+        setMode("hidden");
+        return;
+      }
       setMode("android");
     };
     const onInstalled = () => {
       promptEvent.current = null;
-      rememberDismiss(slug);
+      rememberInstalled(slug);
       setMode("hidden");
     };
 
@@ -53,7 +56,7 @@ export function VenueInstallPrompt({ slug, enabled }: { slug: string; enabled: b
   if (!enabled || mode === "hidden") return null;
 
   const close = () => {
-    rememberDismiss(slug);
+    rememberSessionClosed(slug);
     setMode("hidden");
   };
 
@@ -69,18 +72,14 @@ export function VenueInstallPrompt({ slug, enabled }: { slug: string; enabled: b
 
     void prompted
       .then(async () => {
-        const { outcome } = await event.userChoice;
+        await event.userChoice;
         promptEvent.current = null;
-        if (outcome === "accepted") {
-          rememberDismiss(slug);
-        }
-        // dismissed: no 7-day dismiss — a later beforeinstallprompt may show the sheet again.
+        // accepted is not proof of install — wait for appinstalled / standalone.
+        // dismissed: no permanent or session dismiss; a later BIP may show the sheet again.
         setMode("hidden");
       })
       .catch(() => {
-        // prompt() failed. Do not write a 7-day dismiss.
-        // If Chrome still allows reuse, keep the same event and the sheet for a retry.
-        // If the event was consumed, the next beforeinstallprompt will replace it.
+        // prompt() failed. Do not write dismiss / installed flags.
         if (promptEvent.current === event) {
           setMode("android");
           return;
@@ -123,22 +122,41 @@ export function VenueInstallPrompt({ slug, enabled }: { slug: string; enabled: b
   );
 }
 
-function dismissKey(slug: string) {
-  return `nfcmenu-pwa-prompt:${slug}`;
+function sessionKey(slug: string) {
+  return `nfcmenu-pwa-prompt-session:${slug}`;
 }
 
-function dismissedRecently(slug: string) {
+function installedKey(slug: string) {
+  return `nfcmenu-pwa-installed:${slug}`;
+}
+
+function isSessionClosed(slug: string) {
   try {
-    const stored = Number(localStorage.getItem(dismissKey(slug)));
-    return Number.isFinite(stored) && Date.now() - stored < dismissPeriodMs;
+    return sessionStorage.getItem(sessionKey(slug)) === "1";
   } catch {
     return false;
   }
 }
 
-function rememberDismiss(slug: string) {
+function rememberSessionClosed(slug: string) {
   try {
-    localStorage.setItem(dismissKey(slug), String(Date.now()));
+    sessionStorage.setItem(sessionKey(slug), "1");
+  } catch {
+    // Хранилище браузера может быть закрыто. Страница при этом продолжает работать.
+  }
+}
+
+function isInstalled(slug: string) {
+  try {
+    return localStorage.getItem(installedKey(slug)) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function rememberInstalled(slug: string) {
+  try {
+    localStorage.setItem(installedKey(slug), "1");
   } catch {
     // Хранилище браузера может быть закрыто. Страница при этом продолжает работать.
   }

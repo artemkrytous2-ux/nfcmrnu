@@ -249,6 +249,18 @@ export function SuperadminHome() {
     return null;
   };
 
+  const unlinkOwner = async (id: string) => {
+    setActionError("");
+    setAction({ id, kind: "owner" });
+    const result = await authorized(`/api/superadmin/businesses/${id}/owner`, {
+      method: "DELETE",
+    });
+    setAction(null);
+    if (!result.ok) return result.message;
+    await load();
+    return null;
+  };
+
   const confirmAndActivate = async (request: ActivationRequest) => {
     const venue = request.venueName || "заведение";
     const confirmed = window.confirm(
@@ -509,6 +521,7 @@ export function SuperadminHome() {
             onArchive={(id) => void changeArchive(id, true)}
             onStatus={(business, status) => void changeStatus(business, status)}
             onAssignOwner={assignOwner}
+            onUnlinkOwner={unlinkOwner}
             onSubscriptionChanged={() => void load()}
           />
           <BusinessSection
@@ -519,6 +532,7 @@ export function SuperadminHome() {
             onArchive={(id) => void changeArchive(id, true)}
             onStatus={(business, status) => void changeStatus(business, status)}
             onAssignOwner={assignOwner}
+            onUnlinkOwner={unlinkOwner}
             onSubscriptionChanged={() => void load()}
           />
           <BusinessSection
@@ -529,6 +543,7 @@ export function SuperadminHome() {
             onArchive={(id) => void changeArchive(id, true)}
             onStatus={(business, status) => void changeStatus(business, status)}
             onAssignOwner={assignOwner}
+            onUnlinkOwner={unlinkOwner}
             onSubscriptionChanged={() => void load()}
           />
           <BusinessSection
@@ -541,6 +556,7 @@ export function SuperadminHome() {
             onRestore={(id) => void changeArchive(id, false)}
             onRemove={(business) => void removeForever(business)}
             onAssignOwner={assignOwner}
+            onUnlinkOwner={unlinkOwner}
             onSubscriptionChanged={() => void load()}
           />
         </div>
@@ -697,6 +713,7 @@ function BusinessSection({
   onRemove,
   onStatus,
   onAssignOwner,
+  onUnlinkOwner,
   onSubscriptionChanged,
 }: {
   title: string;
@@ -710,6 +727,7 @@ function BusinessSection({
   onRemove?: (business: Business) => void;
   onStatus?: (business: Business, status: "demo" | "active") => void;
   onAssignOwner?: (id: string, email: string, password: string) => Promise<string | null>;
+  onUnlinkOwner?: (id: string) => Promise<string | null>;
   onSubscriptionChanged?: () => void;
 }) {
   return (
@@ -731,6 +749,7 @@ function BusinessSection({
             onRemove={onRemove}
             onStatus={onStatus}
             onAssignOwner={onAssignOwner}
+            onUnlinkOwner={onUnlinkOwner}
             onSubscriptionChanged={onSubscriptionChanged}
           />
         ))}
@@ -751,6 +770,7 @@ function BusinessCard({
   onRemove,
   onStatus,
   onAssignOwner,
+  onUnlinkOwner,
   onSubscriptionChanged,
 }: {
   business: Business;
@@ -763,6 +783,7 @@ function BusinessCard({
   onRemove?: (business: Business) => void;
   onStatus?: (business: Business, status: "demo" | "active") => void;
   onAssignOwner?: (id: string, email: string, password: string) => Promise<string | null>;
+  onUnlinkOwner?: (id: string) => Promise<string | null>;
   onSubscriptionChanged?: () => void;
 }) {
   const [note, setNote] = useState("");
@@ -876,6 +897,30 @@ function BusinessCard({
               ) : null}
               {!business.hasOwner && onAssignOwner ? (
                 <MenuItem onClick={() => run(() => setPanel("owner"))}>Назначить владельца</MenuItem>
+              ) : null}
+              {business.hasOwner && onUnlinkOwner ? (
+                <MenuItem
+                  disabled={busy}
+                  onClick={() =>
+                    run(() => {
+                      void (async () => {
+                        const confirmed = window.confirm(
+                          `Отвязать владельца от «${business.name}»?\n\nАккаунт в Auth не будет удалён. Меню, фото и настройки заведения сохранятся. После этого можно назначить другого владельца.`,
+                        );
+                        if (!confirmed) return;
+                        const message = await onUnlinkOwner(business.id);
+                        if (message) {
+                          showNote(message, "accent");
+                          return;
+                        }
+                        showNote("Владелец отвязан", "muted");
+                        setPanel("owner");
+                      })();
+                    })
+                  }
+                >
+                  Отвязать владельца
+                </MenuItem>
               ) : null}
               {onRemove && onSlugConfirm ? (
                 <MenuItem onClick={() => run(() => setPanel("delete"))}>Удалить навсегда</MenuItem>
@@ -1025,7 +1070,7 @@ function OwnerAssignForm({
           disabled={busy}
           className="home-cta h-12 rounded-full px-5 text-sm font-medium disabled:opacity-60"
         >
-          {busy ? "Создаём…" : "Создать аккаунт и назначить"}
+          {busy ? "Назначаем…" : "Назначить владельца"}
         </button>
         <button
           type="button"

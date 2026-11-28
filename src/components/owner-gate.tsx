@@ -171,6 +171,9 @@ export function OwnerGate() {
                 autoComplete="current-password"
                 onChange={setPassword}
               />
+              <Link href="/admin/recover" className="justify-self-start text-[15px] text-muted">
+                Забыли пароль?
+              </Link>
               {formError ? (
                 <p className="text-[15px] text-accent" role="alert">
                   {formError}
@@ -178,9 +181,6 @@ export function OwnerGate() {
               ) : null}
               <button type="submit" disabled={pending} className={authPrimaryButton}>
                 {pending ? "Входим…" : "Войти"}
-              </button>
-              <button type="button" className="justify-self-center text-[15px] text-muted">
-                Забыли пароль?
               </button>
             </form>
             <Link href="/#tariffs" className={`${authSecondaryLink} mt-4`}>

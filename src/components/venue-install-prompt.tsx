@@ -57,21 +57,37 @@ export function VenueInstallPrompt({ slug, enabled }: { slug: string; enabled: b
     setMode("hidden");
   };
 
-  const install = async () => {
+  const install = () => {
     const event = promptEvent.current;
-    promptEvent.current = null;
     if (!event) {
       setMode("hidden");
       return;
     }
-    try {
-      await event.prompt();
-      await event.userChoice;
-    } catch {
-      // Браузер отклонил повторный вызов. Предложение просто закрывается.
-    }
-    rememberDismiss(slug);
-    setMode("hidden");
+
+    // prompt() must run in the same user-gesture turn as the click.
+    const prompted = event.prompt();
+
+    void prompted
+      .then(async () => {
+        const { outcome } = await event.userChoice;
+        promptEvent.current = null;
+        if (outcome === "accepted") {
+          rememberDismiss(slug);
+        }
+        // dismissed: no 7-day dismiss — a later beforeinstallprompt may show the sheet again.
+        setMode("hidden");
+      })
+      .catch(() => {
+        // prompt() failed. Do not write a 7-day dismiss.
+        // If Chrome still allows reuse, keep the same event and the sheet for a retry.
+        // If the event was consumed, the next beforeinstallprompt will replace it.
+        if (promptEvent.current === event) {
+          setMode("android");
+          return;
+        }
+        promptEvent.current = null;
+        setMode("hidden");
+      });
   };
 
   return (
@@ -92,7 +108,7 @@ export function VenueInstallPrompt({ slug, enabled }: { slug: string; enabled: b
           {mode === "android" ? (
             <button
               type="button"
-              onClick={() => void install()}
+              onClick={install}
               className="h-11 rounded-full bg-accent px-4 text-sm font-medium text-[#062117]"
             >
               Установить

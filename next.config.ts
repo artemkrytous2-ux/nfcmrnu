@@ -40,6 +40,14 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async rewrites() {
+    return [
+      {
+        source: "/sb/:path*",
+        destination: "https://yktqtxmhkgsrjfzhnsei.supabase.co/:path*",
+      },
+    ];
+  },
   turbopack: {
     rules: {
       "*.css": {

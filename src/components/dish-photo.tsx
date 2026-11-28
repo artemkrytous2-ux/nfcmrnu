@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { isSupabasePublicStorageUrl } from "@/lib/supabase-url";
 
 export function DishPhoto({
   src,
@@ -58,12 +59,5 @@ export function DishPhoto({
 }
 
 function canOptimizeRemote(src: string) {
-  try {
-    const url = new URL(src);
-    if (url.protocol !== "https:") return false;
-    if (!url.hostname.endsWith(".supabase.co")) return false;
-    return url.pathname.includes("/storage/v1/object/public/");
-  } catch {
-    return false;
-  }
+  return isSupabasePublicStorageUrl(src);
 }

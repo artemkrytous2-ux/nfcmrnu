@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { getSupabaseServerUrl } from "@/lib/supabase-url";
 
 export type SuperadminDenial = {
   ok: false;
@@ -12,7 +13,7 @@ export async function requireSuperadmin(
   const token = bearerToken(request.headers.get("authorization"));
   if (!token) return { ok: false, status: "anonymous", httpStatus: 401 };
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const url = getSupabaseServerUrl();
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
   if (!url || !key) return { ok: false, status: "error", httpStatus: 500 };
 

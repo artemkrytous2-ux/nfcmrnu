@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
 import { loadVenuePwa, venueIconUrl } from "@/lib/venue-pwa";
+import { getSupabaseServerUrl } from "@/lib/supabase-url";
 
 const maxBytes = 5 * 1024 * 1024;
 const appleSide = 180;
@@ -9,7 +10,7 @@ const appleSide = 180;
 export async function GET(_request: Request, context: { params: Promise<{ slug: string }> }) {
   const { slug } = await context.params;
   const venue = await loadVenuePwa(slug);
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const supabaseUrl = getSupabaseServerUrl();
   if (!venue?.iconPath || !supabaseUrl) return standardIcon("public, max-age=86400");
 
   try {

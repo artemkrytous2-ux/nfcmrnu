@@ -2,6 +2,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { connection } from "next/server";
 import { isMissingPwaColumn, pwaNameFromValue } from "@/lib/pwa-settings";
 import { venuePwaCacheTag } from "@/lib/public-menu-cache";
+import { getSupabaseServerUrl } from "@/lib/supabase-url";
 
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const filePattern = /^[A-Za-z0-9._-]{1,180}$/;
@@ -38,7 +39,7 @@ export async function loadVenuePwaMetadata(slug: string): Promise<VenuePwa | nul
 export async function listPublishedVenueSlugs(): Promise<string[]> {
   "use cache";
   cacheLife("minutes");
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const url = getSupabaseServerUrl();
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
   if (!url || !key) return [];
 
@@ -68,7 +69,7 @@ export async function listPublishedVenueSlugs(): Promise<string[]> {
 
 async function readVenue(slug: string, mode: "live" | "metadata"): Promise<VenuePwa | null> {
   if (!slugPattern.test(slug)) return null;
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const url = getSupabaseServerUrl();
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
   if (!url || !key) return null;
 

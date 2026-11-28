@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { isExistingAccountError, validateOwnerAccount } from "@/lib/owner-account";
 import { isBusinessId } from "@/lib/superadmin-editor";
 import { requireSuperadmin, superadminDenied } from "@/lib/superadmin-server";
+import { getSupabaseServerUrl } from "@/lib/supabase-url";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -117,7 +118,7 @@ export async function POST(request: Request, context: Context) {
 }
 
 function serviceAuthClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const url = getSupabaseServerUrl();
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!url || !key) return null;
   return createClient(url, key, {

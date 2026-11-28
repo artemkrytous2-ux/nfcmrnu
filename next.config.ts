@@ -1,16 +1,7 @@
 import type { NextConfig } from "next";
 
-function supabaseStorageHost() {
-  const raw = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  if (!raw) return "";
-  try {
-    return new URL(raw).hostname;
-  } catch {
-    return "";
-  }
-}
-
-const storageHost = supabaseStorageHost();
+const SUPABASE_PROJECT_HOST = "yktqtxmhkgsrjfzhnsei.supabase.co";
+const SITE_HOST = "nfcmenu.pro";
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -18,15 +9,18 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   images: {
-    remotePatterns: storageHost
-      ? [
-          {
-            protocol: "https",
-            hostname: storageHost,
-            pathname: "/storage/v1/object/public/**",
-          },
-        ]
-      : [],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: SUPABASE_PROJECT_HOST,
+        pathname: "/storage/v1/object/public/**",
+      },
+      {
+        protocol: "https",
+        hostname: SITE_HOST,
+        pathname: "/sb/storage/v1/object/public/**",
+      },
+    ],
   },
   async headers() {
     return [
@@ -44,7 +38,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/sb/:path*",
-        destination: "https://yktqtxmhkgsrjfzhnsei.supabase.co/:path*",
+        destination: `https://${SUPABASE_PROJECT_HOST}/:path*`,
       },
     ];
   },

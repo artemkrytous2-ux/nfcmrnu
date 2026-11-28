@@ -12,6 +12,7 @@ import {
   unavailablePublicMenu,
 } from "@/lib/public-menu";
 import { publicMenuCacheTag } from "@/lib/public-menu-cache";
+import { getSupabaseServerUrl } from "@/lib/supabase-url";
 
 type RestError = { code?: string; message?: string };
 
@@ -29,7 +30,7 @@ export async function loadPublicMenuBySlug(slug: string): Promise<PublicMenuData
 async function readPublishedMenu(slug: string): Promise<PublicMenuData> {
   if (!PUBLIC_MENU_SLUG_PATTERN.test(slug)) return unavailablePublicMenu(slug);
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const url = getSupabaseServerUrl();
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
   if (!url || !key) return unavailablePublicMenu(slug);
 

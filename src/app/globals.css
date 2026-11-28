@@ -21,6 +21,7 @@
   --font-display: var(--font-cormorant, var(--font-manrope));
 }
 
+
 body {
   background: var(--background);
   color: var(--foreground);
@@ -102,6 +103,198 @@ html:has(.home) {
 .home-cta {
   background: var(--accent);
   color: #062117;
+}
+
+/* Единая визуальная система публичной главной */
+.home-shell {
+  width: 100%;
+  max-width: 72rem;
+  margin-inline: auto;
+  padding: 2.5rem 1.25rem;
+}
+
+.home-h1 {
+  max-width: 48rem;
+  font-size: 1.75rem;
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.home-h2 {
+  max-width: 48rem;
+  font-size: 1.625rem;
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+}
+
+.home-h3 {
+  font-size: 1.125rem;
+  line-height: 1.25;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.home-card-title {
+  font-size: 1rem;
+  line-height: 1.35;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.home-lead {
+  margin-top: 1rem;
+  max-width: 42rem;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.home-body {
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.home-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.home-card {
+  border-radius: 1.5rem;
+  border: 1px solid var(--line);
+  background: var(--card);
+  padding: 1.5rem;
+}
+
+.home-card-accent {
+  border-radius: 1.5rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  padding: 1.5rem;
+}
+
+.home-icon {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent);
+}
+
+.home-step {
+  display: inline-flex;
+  min-width: 2.25rem;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  padding-inline: 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+
+.home-btn {
+  display: inline-flex;
+  height: 3rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  padding-inline: 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.home-btn-sm {
+  display: inline-flex;
+  height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  padding-inline: 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.home-btn-ghost {
+  border: 1px solid var(--line);
+  color: var(--foreground);
+  transition: border-color 0.15s ease;
+}
+
+.home-btn-ghost:hover {
+  border-color: var(--accent);
+}
+
+.home-price {
+  font-size: 2.25rem;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.home-section-gap {
+  margin-top: 2rem;
+}
+
+.home-grid-2 {
+  display: grid;
+  gap: 1rem;
+}
+
+.home-grid-3 {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .home-shell {
+    padding: 3rem 2rem;
+  }
+
+  .home-h1 {
+    font-size: 2.25rem;
+  }
+
+  .home-h2 {
+    font-size: 1.625rem;
+  }
+
+  .home-card {
+    padding: 1.75rem;
+  }
+
+  .home-card-accent {
+    padding: 1.75rem;
+  }
+
+  .home-price {
+    font-size: 2.75rem;
+  }
+
+  .home-grid-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .home-grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .home-compare {
